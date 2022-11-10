@@ -44,7 +44,7 @@ setuptools.setup(
 	description='.',
 	long_description=long_description,
 	long_description_content_type='text/markdown',
-	url='https://github.com/m3trik/tentacle',
+	url='https://github.com/m3trik/map-compositor',
 	packages=setuptools.find_packages(),
 	classifiers=[
 		'Programming Language :: Python :: 3',
