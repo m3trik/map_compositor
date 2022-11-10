@@ -11,7 +11,7 @@ from PySide2 import QtCore, QtWidgets
 from PIL import Image
 from PIL.ImageChops import invert
 
-from qtuitools import UiLoader
+from switchboard import Switchboard
 from slots.utils import Utils
 
 
