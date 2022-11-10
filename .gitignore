@@ -1,12 +1,10 @@
 
 *.json
-map_compositor.egg-info/PKG-INFO
-map_compositor.egg-info/dependency_links.txt
-map_compositor.egg-info/SOURCES.txt
-map_compositor.egg-info/top_level.txt
-update_wheel.cmd
+*.cmd
 *.whl
 *.gz
 *.in
-build/lib/map_compositor/map_compositor.ui
-build/lib/map_compositor/__init__.py
+
+/build
+/dist
+/map_compositor.egg-info
