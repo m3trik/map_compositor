@@ -12,61 +12,22 @@ from PIL import Image
 from PIL.ImageChops import invert
 
 from switchboard import Switchboard
-from slots.utils import Utils
+from tentacle.slots.tk import imgtk, filetk, jsontk
 
 
 name = 'map-compositor'
-__version__ = '0.501'
-
-
-def import_modules(importAll=False):
-	'''
-	'''
-	sys.path.append(os.path.dirname(os.path.abspath(__file__))) #append this dir to the system path.
-
-	for module in os.listdir(os.path.dirname(__file__)):
-
-		mod_name = module[:-3]
-		mod_ext = module[-3:]
-
-		if module == '__init__.py' or mod_ext != '.py':
-			continue
-
-		mod = importlib.import_module(mod_name)
-
-		if importAll:
-			if '__all__' in mod.__dict__: #is there an __all__?  if so respect it.
-				names = mod.__dict__['__all__']
-
-			else: #otherwise we import all names that don't begin with _.
-				names = [x for x in mod.__dict__ if not x.startswith('_')]
-
-			# now drag them in
-			globals().update({k: getattr(mod, k) for k in names})
-
-		else:
-			cls_members = inspect.getmembers(sys.modules[mod_name], inspect.isclass)
-
-			for cls_name, cls_mem in cls_members:
-				globals()[cls_name] = cls_mem
-
-		del module
-
-import_modules(importAll=0)
-
+__version__ = '0.52'
 
 
 class Map_compositor(QtCore.QObject):
 	'''
 	'''
-	__version__ = '1.01'
-
 	msg_intro = '''<u>Required Substance Painter Export Settings:</u><br>Padding: <b>Dilation + transparent</b> or <b>Dilation + default backgound color</b>.
 		<br><br><u>Works best with map filenames (case insensitive) ending in:</u>'''
 	msg_error_maskCreation = '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Unable to create masks from the source images.<br>To create a mask, at least one set of source maps need to a transparent or have a solid single color backround,<br>alternatively a set of mask maps can be added to the source folder. ex. &lt;map_name&gt;_mask.png</hl>'
 	msg_operation_successful = '<br><hl style="color:rgb(0, 255, 255);"><b>COMPLETED.</b></hl>'
 
-	for k, v in Utils.mapTypes.items(): #format msg_intro using the mapTypes in imtools.
+	for k, v in imgtk.mapTypes.items(): #format msg_intro using the mapTypes in imtools.
 		line = '<br><b>{}:</b>  {}'.format(k, v)
 		msg_intro+=line
 
@@ -92,16 +53,16 @@ class Map_compositor(QtCore.QObject):
 			remaining_images = images[1:]
 			width, height = first_image.size
 			mode = first_image.mode
-			ext = Utils.formatFilepath(filepath0, 'ext')
+			ext = filetk.formatPath(filepath0, 'ext')
 
-			key = Utils.getImageType(typ) #get key from type value in mapTypes dict. ie. 'Base_Color' from '_BC' value.
-			bitDepth = Utils.bitDepth[Utils.mapModes[key]]
+			key = imgtk.getImageTypeFromFilename(typ) #get key from type value in mapTypes dict. ie. 'Base_Color' from '_BC' value.
+			bitDepth = imgtk.bitDepth[imgtk.mapModes[key]]
 
 			if mode=='I':
-				first_image = Utils.convert_to_32bit_I(first_image)
+				first_image = imgtk.convert_RBG_to_HSV(first_image)
 
-			map_background = Utils.getImageBackground(first_image, 'RGBA') #get the image background in RGBA format.
-			map_background2 = Utils.getImageBackground(second_image, 'RGBA') #get the image background in RGBA format.
+			map_background = imgtk.getBackground(first_image, 'RGBA') #get the image background in RGBA format.
+			map_background2 = imgtk.getBackground(second_image, 'RGBA') #get the image background in RGBA format.
 
 			if not (map_background and map_background==map_background2): #if not a uniform background, or the background of map1 is not equal to map2:
 				failed[typ] = images
@@ -111,23 +72,23 @@ class Map_compositor(QtCore.QObject):
 				if not self.masks and map_background[3]==0:
 					callback('<i><br>Attempting to create masks using source <b>{}</b> ..</i>'.format(typ))
 					images = [i[1] for i in images] #get the images from the (filepath, image) list of tuples.
-					self.masks = Utils.createMasks(images, map_background); #debug: [self.saveImageFile(i, name=output_dir+'/'+str(n)+'_mask.png') for n, i in enumerate(self.masks)]
+					self.masks = imgtk.createMask(images, map_background); #debug: [self.saveImageFile(i, name=output_dir+'/'+str(n)+'_mask.png') for n, i in enumerate(self.masks)]
 
 			length = len(remaining_images) if len(remaining_images)>1 else 1
 
-			callback('<u><br><b>{} {} {}bit {}</b> {}x{}:</u>'.format(typ.rstrip('_'), Utils.mapModes[key], bitDepth, ext.upper(), width, height))
+			callback('<u><br><b>{} {} {}bit {}</b> {}x{}:</u>'.format(typ.rstrip('_'), imgtk.mapModes[key], bitDepth, ext.upper(), width, height))
 			self.total_progress+=1
-			callback(Utils.formatFilepath(filepath0, 'file'), (1/length) *100, (self.total_progress/self.total_len) *100) #first_image self.total_progress.
+			callback(filetk.formatPath(filepath0, 'file'), (1/length) *100, (self.total_progress/self.total_len) *100) #first_image self.total_progress.
 
 
 			composited_image = first_image.convert('RGBA')
 			for n, (file, im) in enumerate(remaining_images, 1):
 				self.total_progress+=1
-				callback(Utils.formatFilepath(file, 'file'), (n/length) *100, (self.total_progress/self.total_len) *100) #remaining_images self.total_progress.
+				callback(filetk.formatPath(file, 'file'), (n/length) *100, (self.total_progress/self.total_len) *100) #remaining_images self.total_progress.
 
 				if mode=='I':
-					im = Utils.convert_to_32bit_I(im)
-				im = Utils.replaceColor(im, from_color=map_background, mode='RGBA')
+					im = imgtk.convert_RBG_to_HSV(im)
+				im = imgtk.replaceColor(im, from_color=map_background, mode='RGBA')
 
 				try:
 					composited_image = Image.alpha_composite(composited_image, im.convert('RGBA')) #(background, foreground)
@@ -136,36 +97,36 @@ class Map_compositor(QtCore.QObject):
 
 			try:
 				if map_background[3]==0:
-					map_background = Utils.mapBackgrounds[key] #using this may not 
-				mode = Utils.mapModes[key]
+					map_background = imgtk.mapBackgrounds[key] #using this may not 
+				mode = imgtk.mapModes[key]
 			except KeyError as error:
 				pass
 
 			result = Image.new('RGBA', composited_image.size, map_background[:3]+(255,))
 			result.paste(composited_image, mask=composited_image)
-			result = result.convert(mode) if not mode=='I' else Utils.convert_to_32bit_I(result) #return im to it's original mode.
+			result = result.convert(mode) if not mode=='I' else imgtk.convert_RBG_to_HSV(result) #return im to it's original mode.
 
 			result.save('{}/{}_{}.{}'.format(output_dir, name, typ, ext))
 
 			#convert normal maps:
-			if not Utils.containsMapTypes(sorted_images, 'Normal_OpenGL'):
+			if not imgtk.containsMapTypes(sorted_images, 'Normal_OpenGL'):
 				try: #convert DirectX to OpenGL
-					index = Utils.mapTypes['Normal_DirectX'].index(typ)
+					index = imgtk.mapTypes['Normal_DirectX'].index(typ)
 
-					new_type = Utils.mapTypes['Normal_OpenGL'][index]
-					inverted_image = Utils.invertChannels(result, 'g')
+					new_type = imgtk.mapTypes['Normal_OpenGL'][index]
+					inverted_image = imgtk.invertChannels(result, 'g')
 					inverted_image.save('{}/{}_{}.{}'.format(output_dir, name, new_type, ext))
 
 					callback('<br><u><b>{} {} {}bit {}</b> {}x{}:</u>'.format(new_type.rstrip('_'), mode, bitDepth, ext.upper(), width, height))
 					callback('Created using {}_{}.{}'.format(name, typ, ext))
 
 				except ValueError as error:
-					if not Utils.containsMapTypes(sorted_images, 'Normal_DirectX'):
+					if not imgtk.containsMapTypes(sorted_images, 'Normal_DirectX'):
 						try: #convert OpenGL to DirectX
-							index = Utils.mapTypes['Normal_OpenGL'].index(typ)
+							index = imgtk.mapTypes['Normal_OpenGL'].index(typ)
 
-							new_type = Utils.mapTypes['Normal_DirectX'][index]
-							inverted_image = Utils.invertChannels(result, 'g')
+							new_type = imgtk.mapTypes['Normal_DirectX'][index]
+							inverted_image = imgtk.invertChannels(result, 'g')
 							inverted_image.save('{}/{}_{}.{}'.format(output_dir, name, new_type, ext))
 
 							callback('<br><u><b>{} {} {}bit {}</b> {}x{}:</u>'.format(new_type.rstrip('_'), mode, bitDepth, ext.upper(), width, height))
@@ -190,16 +151,16 @@ class Map_compositor(QtCore.QObject):
 					callback('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Composite failed: <b>{}_{}: {}</b></hl>'.format(name, typ, filepath))
 					continue
 
-				key = Utils.getImageType(typ) #
+				key = imgtk.getImageTypeFromFilename(typ) #
 
 				try:
-					background = Utils.mapBackgrounds[key]
+					background = imgtk.mapBackgrounds[key]
 					im = self.fillMaskedArea(image, background, mask)
-					mode = Utils.mapModes[key]
+					mode = imgtk.mapModes[key]
 					im = im.convert(mode)
 
 				except KeyError as error:
-					background = Utils.getImageBackground(image, 'RGBA', average=True) #get the averaged background color.
+					background = imgtk.getBackground(image, 'RGBA', average=True) #get the averaged background color.
 					im = self.fillMaskedArea(image, background, mask)
 
 				try:
@@ -218,22 +179,22 @@ class Map_compositor_slots(Map_compositor):
 		'''
 		self.ui = self.sb.currentUi
 
-		path = '{}/{}.json'.format(self.sb.defaultDir, 'map_compositor')
-		Utils.setJsonFile(path) #set json file name
+		path = '{}/map_compositor.json'.format(self.sb.defaultDir)
+		jsontk.setJsonFile(path) #set json file name
 
 		#load any saved info:
 		try:
-			prev_input_dirs = [i for i in Utils.getJson('prev_input_dirs') if not i=='/']
+			prev_input_dirs = [i for i in jsontk.getJson('prev_input_dirs') if not i=='/']
 			self.ui.cmb000.addItems_(prev_input_dirs[-10:], '/')
 		except TypeError as error:
 			pass
 		try:
-			prev_output_dirs = [i for i in Utils.getJson('prev_output_dirs') if not i=='/']
+			prev_output_dirs = [i for i in jsontk.getJson('prev_output_dirs') if not i=='/']
 			self.ui.cmb001.addItems_(prev_output_dirs[-10:], '/', ascending=True)
 		except TypeError as error:
 			pass
 		try:
-			prev_map_names = [i for i in Utils.getJson('prev_map_names') if not i=='/']
+			prev_map_names = [i for i in jsontk.getJson('prev_map_names') if not i=='/']
 			self.ui.cmb002.addItems_(prev_map_names[-10:], '/', ascending=True)
 		except TypeError as error:
 			pass
@@ -241,9 +202,9 @@ class Map_compositor_slots(Map_compositor):
 		self.orig_toolTip_txt000 = self.ui.txt000.toolTip()
 		self.orig_toolTip_txt001 = self.ui.txt001.toolTip()
 
-		self.ui.txt000.setText(Utils.getJson('input_dir'))
-		self.ui.txt001.setText(Utils.getJson('output_dir'))
-		self.ui.txt002.setText(Utils.getJson('map_name'))
+		self.ui.txt000.setText(jsontk.getJson('input_dir'))
+		self.ui.txt001.setText(jsontk.getJson('output_dir'))
+		self.ui.txt002.setText(jsontk.getJson('map_name'))
 		self.ui.txt003.setText(self.msg_intro)
 
 		#disable the browser open buttons if there isn't a directory.
@@ -328,9 +289,9 @@ class Map_compositor_slots(Map_compositor):
 
 		if text:
 			curItems = cmb.items[1:]
-			if not text in cmb.items and Utils.isValidPath(text): #add value to json dict.
+			if not text in curItems and filetk.isValidPath(text): #add value to json dict.
 				cmb.addItems_(curItems+[text], '/', ascending=True)
-				Utils.setJson('prev_input_dirs', cmb.items)
+				jsontk.setJson('prev_input_dirs', cmb.items)
 
 			self.ui.b003.setDisabled(False)
 			txt.setToolTip(text)
@@ -338,7 +299,7 @@ class Map_compositor_slots(Map_compositor):
 			self.ui.b003.setDisabled(True)
 			txt.setToolTip(self.orig_toolTip_txt000)
 
-		Utils.setJson('input_dir', text)
+		jsontk.setJson('input_dir', text)
 
 
 	def txt001(self, text=None):
@@ -350,17 +311,17 @@ class Map_compositor_slots(Map_compositor):
 
 		if text:
 			curItems = cmb.items[1:]
-			if not text in curItems and Utils.isValidPath(text): #add value to json dict.
+			if not text in curItems and filetk.isValidPath(text): #add value to json dict.
 				cmb.addItems_(curItems+[text], '/', ascending=True)
-				Utils.setJson('prev_output_dirs', cmb.items)
+				jsontk.setJson('prev_output_dirs', cmb.items)
 
 			self.ui.b004.setDisabled(False)
-			self.ui.txt001.setToolTip(text)
+			txt.setToolTip(text)
 		else:
 			self.ui.b004.setDisabled(True)
-			self.ui.txt001.setToolTip(self.orig_toolTip_txt001)
+			txt.setToolTip(self.orig_toolTip_txt001)
 
-		Utils.setJson('output_dir', text)
+		jsontk.setJson('output_dir', text)
 
 
 	def txt002(self, text=None):
@@ -374,23 +335,24 @@ class Map_compositor_slots(Map_compositor):
 			curItems = cmb.items[1:]
 			if not text in cmb.items: #add value to json dict.
 				cmb.addItems_(curItems+[text], '/', ascending=True)
-				Utils.setJson('prev_map_names', cmb.items)
+				jsontk.setJson('prev_map_names', cmb.items)
 
-		Utils.setJson('map_name', text)
+		jsontk.setJson('map_name', text)
 
 
 	def b000(self):
 		'''
 		'''
-		input_dir = Utils.getImageDirectory()
+		input_dir = imgtk.getImageDirectory()
 		if input_dir:
+			self.ui.txt000.setText(input_dir)
 			self.txt000(input_dir) #set the text AND enable the 'open' button if disabled.
 
 
 	def b001(self):
 		'''
 		'''
-		output_dir = Utils.getImageDirectory()
+		output_dir = imgtk.getImageDirectory()
 		if output_dir:
 			self.ui.txt001.setText(output_dir)
 			self.txt001(output_dir) #set the text AND enable the 'open' button if disabled.
@@ -401,7 +363,7 @@ class Map_compositor_slots(Map_compositor):
 		'''
 		self.ui.txt003.clear()
 
-		images = Utils.getImages(self.input_dir)
+		images = imgtk.getImages(self.input_dir)
 		self.process(images, self.input_dir, self.output_dir, self.map_name, self.callback)
 
 
@@ -432,11 +394,11 @@ class Map_compositor_slots(Map_compositor):
 			self.ui.txt003.clear() if not 'Error:' in self.ui.txt003.toPlainText() else None
 			self.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>')
 			return
-		elif not Utils.isValidPath(input_dir):
+		elif not filetk.isValidPath(input_dir):
 			self.ui.txt003.clear() if not 'Error:' in self.ui.txt003.toPlainText() else None
 			self.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(input_dir))
 			return
-		elif not Utils.isValidPath(output_dir):
+		elif not filetk.isValidPath(output_dir):
 			self.ui.txt003.clear() if not 'Error:' in self.ui.txt003.toPlainText() else None
 			self.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(output_dir))
 			return
@@ -447,15 +409,15 @@ class Map_compositor_slots(Map_compositor):
 		self.txt002()
 
 		if not map_name:
-			map_name = Utils.formatFilepath(input_dir, 'dir')
+			map_name = filetk.formatPath(input_dir, 'dir')
 
-		sorted_images = Utils.sortImagesByType(images)
-		total_maps = 1 if Utils.containsMapTypes(sorted_images, ['Normal_DirectX', 'Normal_OpenGL']) else None #account for an additional converted normal map.
+		sorted_images = imgtk.sortImagesByType(images)
+		total_maps = 1 if imgtk.containsMapTypes(sorted_images, 'Normal_DirectX|Normal_OpenGL') else None #account for an additional converted normal map.
 
 		if self.removeNormalMap:
-			if Utils.containsMapTypes(sorted_images, ['Normal_DirectX', 'Normal_OpenGL']):
+			if imgtk.containsMapTypes(sorted_images, ['Normal_DirectX', 'Normal_OpenGL']):
 				normal = next((i for i in sorted_images.keys() #delete the standard normal map from the output.
-					if Utils.getImageType(i)=='Normal'), False)
+					if imgtk.getImageTypeFromFilename(i)=='Normal'), False)
 				if normal:
 					del sorted_images[normal]
 
@@ -518,6 +480,8 @@ class Map_compositor_main(Map_compositor):
 		ui = sb.map_compositor
 		sb.setStyle(ui.widgets)
 		ui.show()
+
+# --------------------------------
 
 
 

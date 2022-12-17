@@ -18,7 +18,7 @@ def gen_data_files(dirs, exclude=[], include=[]):
 		for root, dirs, files in os.walk(src_dir):
 			filtered=[]
 			for f in files:
-				ext = Utils.formatFilepath(f, 'ext')
+				ext = Utils.formatPath(f, 'ext')
 				if f in exclude or '*.'+ext in exclude:
 					continue
 				if any(include): #filter include for None values so not to get a false positive.
