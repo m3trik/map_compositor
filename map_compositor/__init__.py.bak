@@ -16,7 +16,7 @@ from tentacle.slots.tk import imgtk, filetk, jsontk
 
 
 name = 'map-compositor'
-__version__ = '0.5.2'
+__version__ = '0.52'
 
 
 class Map_compositor(QtCore.QObject):
@@ -481,7 +481,7 @@ class Map_compositor_main(Map_compositor):
 		sb.setStyle(ui.widgets)
 		ui.show()
 
-# -----------------------------------------------------------------------------
+# --------------------------------
 
 
 
@@ -499,9 +499,9 @@ if __name__ == "__main__":
 	sys.exit(app.exec_()) # run app, show window, wait for input, then terminate program with a status code returned from app.
 
 
-# -----------------------------------------------------------------------------
+# --------------------------------
 # Notes
-# -----------------------------------------------------------------------------
+# --------------------------------
 
 
 
