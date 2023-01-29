@@ -51,3 +51,9 @@
 /build
 /dist
 /map_compositor.egg-info
+*.rar
+*.bak
+*.bak
+*.bak
+*.pyc
+*.pyc

@@ -3,7 +3,7 @@ import setuptools
 
 from map_compositor import name, __version__
 
-from tentacle.slots.tk import filetk
+from pythontk import File
 
 
 with open('docs/README.md', 'r') as f:
@@ -25,7 +25,7 @@ setuptools.setup(
 		'Operating System :: OS Independent',
 	],
 	include_package_data = True,
-	data_files=filetk.getDirContents('map_compositor', 'filepaths', excFiles=['*.py', '*.pyc', '*.json']), #ie. ('tentacle/ui/0', ['tentacle/ui/0/init.ui']),
+	data_files=File.getDirContents('map_compositor', 'filepaths', excFiles=['*.py', '*.pyc', '*.json']), #ie. ('tentacle/ui/0', ['tentacle/ui/0/init.ui']),
 )
 
 # --------------------------------------------------------------------------------------------
