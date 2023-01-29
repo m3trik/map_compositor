@@ -17,7 +17,7 @@ from tentacle.widgets import rwidgets
 
 
 name = 'map-compositor'
-__version__ = '0.5.2'
+__version__ = '0.5.3'
 
 class Map_compositor(QtCore.QObject):
 	'''
