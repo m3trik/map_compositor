@@ -35,11 +35,9 @@
 # ! negates (re-include) any file that is ignored by the previous pattern. The exception to this rule is to re-include a file if its parent directory is excluded.
 # *.log, !error.log		error.log or logs/error.log will not be ignored
 
-
-
 # --------------------------------------------------------------------------------------------------
-# Ignore:
-# --------------------------------------------------------------------------------------------------
+
+# Package (ignore)
 *.json
 *.cmd
 *.whl
