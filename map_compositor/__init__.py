@@ -12,8 +12,8 @@ from PIL import Image
 from PIL.ImageChops import invert
 
 from pythontk import Img, File, Json
-from tentacle.switchboard import Switchboard
-from tentacle.widgets import rwidgets
+from uitk.switchboard import Switchboard
+from uitk.widgets import rwidgets
 
 
 name = 'map-compositor'

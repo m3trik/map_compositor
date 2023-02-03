@@ -25,7 +25,7 @@ setuptools.setup(
 		'Operating System :: OS Independent',
 	],
 	include_package_data = True,
-	data_files=File.getDirContents('map_compositor', 'filepaths', excFiles=['*.py', '*.pyc', '*.json']), #ie. ('tentacle/ui/0', ['tentacle/ui/0/init.ui']),
+	data_files=File.getDirContents('map_compositor', 'filepaths', excFiles=['*.py', '*.pyc', '*.json']), #ie. ('uitk/ui/0', ['uitk/ui/0/init.ui']),
 )
 
 # --------------------------------------------------------------------------------------------
@@ -71,5 +71,5 @@ setuptools.setup(
 # 				results.append((root, list(map(lambda f:root + "/" + f, filtered))))
 # 	return results
 
-# # for i in gen_data_files('tentacle', exc=['*.py', '*.pyc', '*.json']):
+# # for i in gen_data_files('uitk', exc=['*.py', '*.pyc', '*.json']):
 # 	# print (i)
