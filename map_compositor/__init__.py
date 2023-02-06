@@ -16,8 +16,8 @@ from uitk.switchboard import Switchboard
 from uitk.widgets import rwidgets
 
 
-name = 'map-compositor'
-__version__ = '0.5.3'
+__package__ = 'map-compositor'
+__version__ = '0.5.4'
 
 class Map_compositor(QtCore.QObject):
 	'''
