@@ -1,12 +1,10 @@
 # !/usr/bin/python
 # coding=utf-8
 import sys, os
-
 import importlib
 import inspect
 
 import numpy as np
-
 from PySide2 import QtCore, QtWidgets
 from PIL import Image
 from PIL.ImageChops import invert
@@ -17,29 +15,17 @@ from uitk.widgets import rwidgets
 
 
 __package__ = 'map-compositor'
-__version__ = '0.5.4'
+__version__ = '0.5.5'
 
-class Map_compositor(QtCore.QObject):
+
+class Map_compositor():
 	'''
 	'''
-	msg_intro = '''<u>Required Substance Painter Export Settings:</u><br>Padding: <b>Dilation + transparent</b> or <b>Dilation + default backgound color</b>.
-		<br><br><u>Works best with map filenames (case insensitive) ending in:</u>'''
-	msg_error_maskCreation = '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Unable to create masks from the source images.<br>To create a mask, at least one set of source maps need to a transparent or have a solid single color backround,<br>alternatively a set of mask maps can be added to the source folder. ex. &lt;map_name&gt;_mask.png</hl>'
-	msg_operation_successful = '<br><hl style="color:rgb(0, 255, 255);"><b>COMPLETED.</b></hl>'
-
-	for k, v in Img.mapTypes.items(): #format msg_intro using the mapTypes in imtools.
-		line = '<br><b>{}:</b>  {}'.format(k, v)
-		msg_intro+=line
-
 	removeNormalMap = True
 	renameMixedAOMap = True
 	total_len = 0
 	total_progress = 0
 	masks=[]
-
-	def __init__(self, parent=None):
-		QtCore.QObject.__init__(self, parent)
-
 
 	def compositeImages(self, sorted_images, output_dir, name='', callback=print):
 		'''
@@ -174,45 +160,52 @@ class Map_compositor(QtCore.QObject):
 
 class Map_compositor_slots(Map_compositor):
 
+	msg_intro = '''<u>Required Substance Painter Export Settings:</u><br>Padding: <b>Dilation + transparent</b> or <b>Dilation + default backgound color</b>.
+		<br><br><u>Works best with map filenames (case insensitive) ending in:</u>'''
+	msg_error_maskCreation = '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Unable to create masks from the source images.<br>To create a mask, at least one set of source maps need to a transparent or have a solid single color backround,<br>alternatively a set of mask maps can be added to the source folder. ex. &lt;map_name&gt;_mask.png</hl>'
+	msg_operation_successful = '<br><hl style="color:rgb(0, 255, 255);"><b>COMPLETED.</b></hl>'
+
+	for k, v in Img.mapTypes.items(): #format msg_intro using the mapTypes in imtools.
+		line = '<br><b>{}:</b>  {}'.format(k, v)
+		msg_intro+=line
+
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
+		'''Slot classes defined in a switchboard instance inherit an `sb` (switchboard) attribute by default.
 		'''
-		'''
-		self.ui = self.sb.currentUi
-
 		path = '{}/map_compositor.json'.format(self.sb.defaultDir)
 		Json.setJsonFile(path) #set json file name
 
 		#load any saved info:
 		try:
 			prev_input_dirs = [i for i in Json.getJson('prev_input_dirs') if not i=='/']
-			self.ui.cmb000.addItems_(prev_input_dirs[-10:], '/')
+			self.sb.ui.cmb000.addItems_(prev_input_dirs[-10:], '/')
 		except TypeError as error:
 			pass
 		try:
 			prev_output_dirs = [i for i in Json.getJson('prev_output_dirs') if not i=='/']
-			self.ui.cmb001.addItems_(prev_output_dirs[-10:], '/', ascending=True)
+			self.sb.ui.cmb001.addItems_(prev_output_dirs[-10:], '/', ascending=True)
 		except TypeError as error:
 			pass
 		try:
 			prev_map_names = [i for i in Json.getJson('prev_map_names') if not i=='/']
-			self.ui.cmb002.addItems_(prev_map_names[-10:], '/', ascending=True)
+			self.sb.ui.cmb002.addItems_(prev_map_names[-10:], '/', ascending=True)
 		except TypeError as error:
 			pass
 
-		self.orig_toolTip_txt000 = self.ui.txt000.toolTip()
-		self.orig_toolTip_txt001 = self.ui.txt001.toolTip()
+		self.orig_toolTip_txt000 = self.sb.ui.txt000.toolTip()
+		self.orig_toolTip_txt001 = self.sb.ui.txt001.toolTip()
 
-		self.ui.txt000.setText(Json.getJson('input_dir'))
-		self.ui.txt001.setText(Json.getJson('output_dir'))
-		self.ui.txt002.setText(Json.getJson('map_name'))
-		self.ui.txt003.setText(self.msg_intro)
+		self.sb.ui.txt000.setText(Json.getJson('input_dir'))
+		self.sb.ui.txt001.setText(Json.getJson('output_dir'))
+		self.sb.ui.txt002.setText(Json.getJson('map_name'))
+		self.sb.ui.txt003.setText(self.msg_intro)
 
 		#disable the browser open buttons if there isn't a directory.
-		if not self.ui.txt000.text():
-			self.ui.b003.setDisabled(True)
-		if not self.ui.txt001.text():
-			self.ui.b004.setDisabled(True)
+		if not self.sb.ui.txt000.text():
+			self.sb.ui.b003.setDisabled(True)
+		if not self.sb.ui.txt001.text():
+			self.sb.ui.b004.setDisabled(True)
 
 
 	@property
@@ -222,7 +215,7 @@ class Map_compositor_slots(Map_compositor):
 		:Return:
 			(str) directory path.
 		'''
-		return self.ui.txt000.text()
+		return self.sb.ui.txt000.text()
 
 
 	@property
@@ -232,7 +225,7 @@ class Map_compositor_slots(Map_compositor):
 		:Return:
 			(str) directory path.
 		'''
-		return self.ui.txt001.text()
+		return self.sb.ui.txt001.text()
 
 
 	@property
@@ -242,14 +235,14 @@ class Map_compositor_slots(Map_compositor):
 		:Return:
 			(str)
 		'''
-		return self.ui.txt002.text()
+		return self.sb.ui.txt002.text()
 
 
 	def cmb000(self, index):
 		'''
 		'''
-		cmb = self.ui.cmb000
-		txt = self.ui.txt000
+		cmb = self.sb.ui.cmb000
+		txt = self.sb.ui.txt000
 
 		if index>0:
 			text = cmb.itemText(index)
@@ -260,8 +253,8 @@ class Map_compositor_slots(Map_compositor):
 	def cmb001(self, index):
 		'''
 		'''
-		cmb = self.ui.cmb001
-		txt = self.ui.txt001
+		cmb = self.sb.ui.cmb001
+		txt = self.sb.ui.txt001
 
 		if index>0:
 			text = cmb.itemText(index)
@@ -272,8 +265,8 @@ class Map_compositor_slots(Map_compositor):
 	def cmb002(self, index):
 		'''
 		'''
-		cmb = self.ui.cmb002
-		txt = self.ui.txt002
+		cmb = self.sb.ui.cmb002
+		txt = self.sb.ui.txt002
 
 		if index>0:
 			text = cmb.itemText(index)
@@ -284,8 +277,8 @@ class Map_compositor_slots(Map_compositor):
 	def txt000(self, text=None):
 		'''
 		'''
-		cmb = self.ui.cmb000
-		txt = self.ui.txt000
+		cmb = self.sb.ui.cmb000
+		txt = self.sb.ui.txt000
 		text = txt.text()
 
 		if text:
@@ -294,10 +287,10 @@ class Map_compositor_slots(Map_compositor):
 				cmb.addItems_(curItems+[text], '/', ascending=True)
 				Json.setJson('prev_input_dirs', cmb.items)
 
-			self.ui.b003.setDisabled(False)
+			self.sb.ui.b003.setDisabled(False)
 			txt.setToolTip(text)
 		else:
-			self.ui.b003.setDisabled(True)
+			self.sb.ui.b003.setDisabled(True)
 			txt.setToolTip(self.orig_toolTip_txt000)
 
 		Json.setJson('input_dir', text)
@@ -306,8 +299,8 @@ class Map_compositor_slots(Map_compositor):
 	def txt001(self, text=None):
 		'''
 		'''
-		cmb = self.ui.cmb001
-		txt = self.ui.txt001
+		cmb = self.sb.ui.cmb001
+		txt = self.sb.ui.txt001
 		text = txt.text()
 
 		if text:
@@ -316,10 +309,10 @@ class Map_compositor_slots(Map_compositor):
 				cmb.addItems_(curItems+[text], '/', ascending=True)
 				Json.setJson('prev_output_dirs', cmb.items)
 
-			self.ui.b004.setDisabled(False)
+			self.sb.ui.b004.setDisabled(False)
 			txt.setToolTip(text)
 		else:
-			self.ui.b004.setDisabled(True)
+			self.sb.ui.b004.setDisabled(True)
 			txt.setToolTip(self.orig_toolTip_txt001)
 
 		Json.setJson('output_dir', text)
@@ -328,8 +321,8 @@ class Map_compositor_slots(Map_compositor):
 	def txt002(self, text=None):
 		'''
 		'''
-		cmb = self.ui.cmb002
-		txt = self.ui.txt002
+		cmb = self.sb.ui.cmb002
+		txt = self.sb.ui.txt002
 		text = txt.text()
 
 		if text:
@@ -346,7 +339,7 @@ class Map_compositor_slots(Map_compositor):
 		'''
 		input_dir = Img.getImageDirectory()
 		if input_dir:
-			self.ui.txt000.setText(input_dir)
+			self.sb.ui.txt000.setText(input_dir)
 			self.txt000(input_dir) #set the text AND enable the 'open' button if disabled.
 
 
@@ -355,14 +348,14 @@ class Map_compositor_slots(Map_compositor):
 		'''
 		output_dir = Img.getImageDirectory()
 		if output_dir:
-			self.ui.txt001.setText(output_dir)
+			self.sb.ui.txt001.setText(output_dir)
 			self.txt001(output_dir) #set the text AND enable the 'open' button if disabled.
 
 
 	def b002(self):
 		'''
 		'''
-		self.ui.txt003.clear()
+		self.sb.ui.txt003.clear()
 
 		images = Img.getImages(self.input_dir)
 		self.process(images, self.input_dir, self.output_dir, self.map_name, self.callback)
@@ -392,16 +385,16 @@ class Map_compositor_slots(Map_compositor):
 		self.callback('<i>Loading maps ..</i>', clear=True)
 
 		if not (input_dir and output_dir):
-			self.ui.txt003.clear() if not 'Error:' in self.ui.txt003.toPlainText() else None
-			self.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>')
+			self.sb.ui.txt003.clear() if not 'Error:' in self.sb.ui.txt003.toPlainText() else None
+			self.sb.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>')
 			return
 		elif not File.isValidPath(input_dir):
-			self.ui.txt003.clear() if not 'Error:' in self.ui.txt003.toPlainText() else None
-			self.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(input_dir))
+			self.sb.ui.txt003.clear() if not 'Error:' in self.sb.ui.txt003.toPlainText() else None
+			self.sb.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(input_dir))
 			return
 		elif not File.isValidPath(output_dir):
-			self.ui.txt003.clear() if not 'Error:' in self.ui.txt003.toPlainText() else None
-			self.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(output_dir))
+			self.sb.ui.txt003.clear() if not 'Error:' in self.sb.ui.txt003.toPlainText() else None
+			self.sb.ui.txt003.append('<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(output_dir))
 			return
 
 		#save the current lineEdit values to the json file.
@@ -449,26 +442,25 @@ class Map_compositor_slots(Map_compositor):
 			raise error
 
 
-
 	def callback(self, string, progress=None, total_progress=None, clear=False):
 		'''
 		'''
 		if clear:
-			self.ui.txt003.clear()
-		self.ui.txt003.append(string)
+			self.sb.ui.txt003.clear()
+		self.sb.ui.txt003.append(string)
 
 		if progress is not None:
-			self.ui.progressBar.setValue(progress)
+			self.sb.ui.progressBar.setValue(progress)
 
 		if total_progress is not None:
-			self.ui.progressBar_total.setValue(total_progress)
+			self.sb.ui.progressBar_total.setValue(total_progress)
 
 			QtWidgets.QApplication.processEvents()
 
 
 
-class Map_compositor_main(Map_compositor):
-	'''
+class Map_compositor_main(QtWidgets.QMainWindow):
+	'''Constructs the main ui window for `Map_compositor` class.
 	'''
 	app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv) #return the existing QApplication object, or create a new one if none exists.
 
@@ -476,9 +468,18 @@ class Map_compositor_main(Map_compositor):
 		super().__init__(parent)
 
 		self.sb = Switchboard(self, widgetLoc=rwidgets, slotLoc=Map_compositor_slots)
-		ui = self.sb.map_compositor
-		self.sb.setStyle(ui.widgets)
-		ui.show()
+		self.sb.map_compositor.alias = 'ui'
+
+		self.setCentralWidget(self.sb.ui)
+		self.sb.setStyle(self.sb.ui.widgets)
+
+		try:
+			self.sb.ui.connected = True
+		except Exception as error:
+			print (f'# Error: {__file__} in Map_compositor_main\n#\tCould not establish slot connections for `{self.sb.ui.name}`\n#\t{error}')
+		self.sb.ui.isInitialized = True
+		self.activateWindow()
+
 
 # -----------------------------------------------------------------------------
 
@@ -494,9 +495,10 @@ class Map_compositor_main(Map_compositor):
 
 if __name__ == "__main__":
 
-	mc = Map_compositor_main()
+	main = Map_compositor_main()
+	main.show()
 
-	sys.exit(mc.sb.app.exec_()) # run app, show window, wait for input, then terminate program with a status code returned from app.
+	sys.exit(main.app.exec_()) # run app, show window, wait for input, then terminate program with a status code returned from app.
 
 # -----------------------------------------------------------------------------
 # Notes
