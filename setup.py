@@ -2,7 +2,6 @@ import os
 import setuptools
 
 from map_compositor import __package__, __version__
-
 from pythontk import File
 
 
@@ -17,7 +16,7 @@ setuptools.setup(
 	description='.',
 	long_description=long_description,
 	long_description_content_type='text/markdown',
-	url='https://github.com/m3trik/map-compositor',
+	url=f'https://github.com/m3trik/{__package__}',
 	packages=setuptools.find_packages(),
 	classifiers=[
 		'Programming Language :: Python :: 3',

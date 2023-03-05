@@ -11,11 +11,10 @@ from PIL.ImageChops import invert
 
 from pythontk import Img, File, Json
 from uitk.switchboard import Switchboard
-from uitk.widgets import rwidgets
 
 
 __package__ = 'map-compositor'
-__version__ = '0.5.5'
+__version__ = '0.5.8'
 
 
 class Map_compositor():
@@ -171,8 +170,10 @@ class Map_compositor_slots(Map_compositor):
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
-		'''Slot classes defined in a switchboard instance inherit an `sb` (switchboard) attribute by default.
 		'''
+		'''
+		self.sb = self.get_switchboard_instance()
+
 		path = '{}/map_compositor.json'.format(self.sb.defaultDir)
 		Json.setJsonFile(path) #set json file name
 
@@ -212,7 +213,7 @@ class Map_compositor_slots(Map_compositor):
 	def input_dir(self) -> str:
 		'''Get the source directory from the user input text field.
 
-		:Return:
+		Return:
 			(str) directory path.
 		'''
 		return self.sb.ui.txt000.text()
@@ -222,7 +223,7 @@ class Map_compositor_slots(Map_compositor):
 	def output_dir(self) -> str:
 		'''Get the export directory from the user input text field.
 
-		:Return:
+		Return:
 			(str) directory path.
 		'''
 		return self.sb.ui.txt001.text()
@@ -232,7 +233,7 @@ class Map_compositor_slots(Map_compositor):
 	def map_name(self) -> str:
 		'''Get the map name from the user input text field.
 
-		:Return:
+		Return:
 			(str)
 		'''
 		return self.sb.ui.txt002.text()
@@ -459,27 +460,31 @@ class Map_compositor_slots(Map_compositor):
 
 
 
-class Map_compositor_main(QtWidgets.QMainWindow):
+class Map_compositor_sb(Switchboard):
 	'''Constructs the main ui window for `Map_compositor` class.
 	'''
-	app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv) #return the existing QApplication object, or create a new one if none exists.
-
 	def __init__(self, parent=None):
 		super().__init__(parent)
 
-		self.sb = Switchboard(self, widgetLoc=rwidgets, slotLoc=Map_compositor_slots)
-		self.sb.map_compositor.alias = 'ui'
+		self.ui_location = 'map_compositor.ui'
+		self.slots_location = Map_compositor_slots
 
-		self.setCentralWidget(self.sb.ui)
-		self.sb.setStyle(self.sb.ui.widgets)
+		self.ui.txt003.hide()
+		self.ui.toggle_expand.clicked.connect(self.toggleTextEdit)
 
-		try:
-			self.sb.ui.connected = True
-		except Exception as error:
-			print (f'# Error: {__file__} in Map_compositor_main\n#\tCould not establish slot connections for `{self.sb.ui.name}`\n#\t{error}')
-		self.sb.ui.isInitialized = True
-		self.activateWindow()
+		self.ui.resize(self.ui.sizeHint())
 
+
+	def toggleTextEdit(self):
+		txt = self.ui.txt003
+		if txt.isVisible():
+			self._height_open = self.ui.height()
+			txt.hide()
+			self.ui.resize(self.ui.width(), self._height_closed)
+		else:
+			self._height_closed = self.ui.height()
+			txt.show()
+			self.ui.resize(self.ui.width(), self._height_open if hasattr(self, '_height_open') else self.ui.sizeHint().height()+100)
 
 # -----------------------------------------------------------------------------
 
@@ -495,10 +500,10 @@ class Map_compositor_main(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
 
-	main = Map_compositor_main()
-	main.show()
+	sb = Map_compositor_sb()
+	sb.ui.show()
 
-	sys.exit(main.app.exec_()) # run app, show window, wait for input, then terminate program with a status code returned from app.
+	sys.exit(sb.app.exec_()) # run app, show window, wait for input, then terminate program with a status code returned from app.
 
 # -----------------------------------------------------------------------------
 # Notes
