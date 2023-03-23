@@ -2,11 +2,11 @@ import os
 import setuptools
 
 from map_compositor import __package__, __version__
-from pythontk import File
+from pythontk import File, Str
 
 
-with open('docs/README.md', 'r') as f:
-	long_description = f.read()
+long_description = File.getFileContents('docs/README.md')
+description = Str.getTextBetweenDelimiters(long_description, '<!-- short_description_start -->', '<!-- short_description_end -->', as_string=True)
 
 setuptools.setup(
 	name=__package__,

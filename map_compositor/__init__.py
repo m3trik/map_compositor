@@ -501,9 +501,7 @@ class Map_compositor_sb(Switchboard):
 if __name__ == "__main__":
 
 	sb = Map_compositor_sb()
-	sb.ui.show()
-
-	sys.exit(sb.app.exec_()) # run app, show window, wait for input, then terminate program with a status code returned from app.
+	sb.ui.show(app_exec=True)
 
 # -----------------------------------------------------------------------------
 # Notes
