@@ -1,23 +1,22 @@
 import os
 import setuptools
 
-from map_compositor import name, __version__
+from map_compositor import __package__, __version__
+from pythontk import File, Str
 
-from pythontk import File
 
-
-with open('docs/README.md', 'r') as f:
-	long_description = f.read()
+long_description = File.getFileContents('docs/README.md')
+description = Str.getTextBetweenDelimiters(long_description, '<!-- short_description_start -->', '<!-- short_description_end -->', as_string=True)
 
 setuptools.setup(
-	name=name,
+	name=__package__,
 	version=__version__,
 	author='Ryan Simpson',
 	author_email='m3trik@outlook.com',
 	description='.',
 	long_description=long_description,
 	long_description_content_type='text/markdown',
-	url='https://github.com/m3trik/map-compositor',
+	url=f'https://github.com/m3trik/{__package__}',
 	packages=setuptools.find_packages(),
 	classifiers=[
 		'Programming Language :: Python :: 3',
