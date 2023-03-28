@@ -1,4 +1,4 @@
-## Map Compositor.
+### Map Compositor
 
 ---
 <!-- short_description_start -->
@@ -18,7 +18,7 @@ install via pip in a command line window using:
 python -m pip install map-compositor
 ```
 
-### Example use-case:
+### Example:
 ```python
 from map_compositor import Map_compositor_main
 Map_compositor_main()
