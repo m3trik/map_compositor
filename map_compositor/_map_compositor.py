@@ -1,15 +1,9 @@
 # !/usr/bin/python
 # coding=utf-8
-import sys, os
-import importlib
-import inspect
-
-import numpy as np
-from PySide2 import QtCore, QtWidgets
+import os
+from PySide2 import QtWidgets
 from PIL import Image
-from PIL.ImageChops import invert
-
-from pythontk import Img, File, Json
+import pythontk as ptk
 from uitk.switchboard import Switchboard
 
 
@@ -17,7 +11,7 @@ __package__ = "map-compositor"
 __version__ = "0.5.8"
 
 
-class Map_compositor:
+class MapCompositor:
     """ """
 
     removeNormalMap = True
@@ -26,7 +20,7 @@ class Map_compositor:
     total_progress = 0
     masks = []
 
-    def compositeImages(self, sorted_images, output_dir, name="", callback=print):
+    def composite_images(self, sorted_images, output_dir, name="", callback=print):
         """ """
         failed = {}
         for typ, images in sorted_images.items():
@@ -36,22 +30,22 @@ class Map_compositor:
             remaining_images = images[1:]
             width, height = first_image.size
             mode = first_image.mode
-            ext = File.formatPath(filepath0, "ext")
+            ext = ptk.format_path(filepath0, "ext")
 
-            key = Img.getImageTypeFromFilename(
+            key = ptk.get_image_type_from_filename(
                 typ
-            )  # get key from type value in mapTypes dict. ie. 'Base_Color' from '_BC' value.
-            bitDepth = Img.bitDepth[Img.mapModes[key]]
+            )  # get key from type value in map_types dict. ie. 'Base_Color' from '_BC' value.
+            bit_depth = ptk.Img.bit_depth[ptk.Img.map_modes[key]]
 
             if (
                 mode == "I"
             ):  # unable to create mode I 32bit. use rgb until a fix is found.
                 first_image = first_image.convert("RGB")
 
-            map_background = Img.getBackground(
+            map_background = ptk.get_background(
                 first_image, "RGBA"
             )  # get the image background in RGBA format.
-            map_background2 = Img.getBackground(
+            map_background2 = ptk.get_background(
                 second_image, "RGBA"
             )  # get the image background in RGBA format.
 
@@ -71,16 +65,16 @@ class Map_compositor:
                     images = [
                         i[1] for i in images
                     ]  # get the images from the (filepath, image) list of tuples.
-                    self.masks = Img.createMask(images, map_background)
-                    # debug: [self.saveImageFile(i, name=output_dir+'/'+str(n)+'_mask.png') for n, i in enumerate(self.masks)]
+                    self.masks = ptk.create_mask(images, map_background)
+                    # debug: [self.save_image(i, name=output_dir+'/'+str(n)+'_mask.png') for n, i in enumerate(self.masks)]
 
             length = len(remaining_images) if len(remaining_images) > 1 else 1
 
             callback(
                 "<u><br><b>{} {} {}bit {}</b> {}x{}:</u>".format(
                     typ.rstrip("_"),
-                    Img.mapModes[key],
-                    bitDepth,
+                    ptk.Img.map_modes[key],
+                    bit_depth,
                     ext.upper(),
                     width,
                     height,
@@ -88,7 +82,7 @@ class Map_compositor:
             )
             self.total_progress += 1
             callback(
-                File.formatPath(filepath0, "file"),
+                ptk.format_path(filepath0, "file"),
                 (1 / length) * 100,
                 (self.total_progress / self.total_len) * 100,
             )  # first_image self.total_progress.
@@ -97,14 +91,14 @@ class Map_compositor:
             for n, (file, im) in enumerate(remaining_images, 1):
                 self.total_progress += 1
                 callback(
-                    File.formatPath(file, "file"),
+                    ptk.format_path(file, "file"),
                     (n / length) * 100,
                     (self.total_progress / self.total_len) * 100,
                 )  # remaining_images self.total_progress.
 
                 if mode == "I":
                     im = im.convert("RGB")
-                im = Img.replaceColor(im, from_color=map_background, mode="RGBA")
+                im = ptk.replace_color(im, from_color=map_background, mode="RGBA")
 
                 try:
                     composited_image = Image.alpha_composite(
@@ -119,9 +113,9 @@ class Map_compositor:
 
             try:
                 if map_background[3] == 0:
-                    map_background = Img.mapBackgrounds[key]  # using this may not
-                mode = Img.mapModes[key]
-            except KeyError as error:
+                    map_background = ptk.Img.map_backgrounds[key]  # using this may not
+                mode = ptk.Img.map_modes[key]
+            except KeyError:
                 pass
 
             result = Image.new(
@@ -135,12 +129,12 @@ class Map_compositor:
             result.save("{}/{}_{}.{}".format(output_dir, name, typ, ext))
 
             # convert normal maps:
-            if not Img.containsMapTypes(sorted_images, "Normal_OpenGL"):
+            if not ptk.contains_map_types(sorted_images, "Normal_OpenGL"):
                 try:  # convert DirectX to OpenGL
-                    index = Img.mapTypes["Normal_DirectX"].index(typ)
+                    index = ptk.Img.map_types["Normal_DirectX"].index(typ)
 
-                    new_type = Img.mapTypes["Normal_OpenGL"][index]
-                    inverted_image = Img.invertChannels(result, "g")
+                    new_type = ptk.Img.map_types["Normal_OpenGL"][index]
+                    inverted_image = ptk.invert_channels(result, "g")
                     inverted_image.save(
                         "{}/{}_{}.{}".format(output_dir, name, new_type, ext)
                     )
@@ -149,7 +143,7 @@ class Map_compositor:
                         "<br><u><b>{} {} {}bit {}</b> {}x{}:</u>".format(
                             new_type.rstrip("_"),
                             mode,
-                            bitDepth,
+                            bit_depth,
                             ext.upper(),
                             width,
                             height,
@@ -157,13 +151,13 @@ class Map_compositor:
                     )
                     callback("Created using {}_{}.{}".format(name, typ, ext))
 
-                except ValueError as error:
-                    if not Img.containsMapTypes(sorted_images, "Normal_DirectX"):
+                except ValueError:
+                    if not ptk.contains_map_types(sorted_images, "Normal_DirectX"):
                         try:  # convert OpenGL to DirectX
-                            index = Img.mapTypes["Normal_OpenGL"].index(typ)
+                            index = ptk.Img.map_types["Normal_OpenGL"].index(typ)
 
-                            new_type = Img.mapTypes["Normal_DirectX"][index]
-                            inverted_image = Img.invertChannels(result, "g")
+                            new_type = ptk.Img.map_types["Normal_DirectX"][index]
+                            inverted_image = ptk.invert_channels(result, "g")
                             inverted_image.save(
                                 "{}/{}_{}.{}".format(output_dir, name, new_type, ext)
                             )
@@ -172,7 +166,7 @@ class Map_compositor:
                                 "<br><u><b>{} {} {}bit {}</b> {}x{}:</u>".format(
                                     new_type.rstrip("_"),
                                     mode,
-                                    bitDepth,
+                                    bit_depth,
                                     ext.upper(),
                                     width,
                                     height,
@@ -180,18 +174,18 @@ class Map_compositor:
                             )
                             callback("Created using {}_{}.{}".format(name, typ, ext))
 
-                        except ValueError as error:
+                        except ValueError:
                             continue
         return failed
 
-    def retryFailed(self, failed, name, callback):
+    def retry_failed(self, failed, name, callback):
         """ """
         failed_images = {}
         for typ, images in failed.items():
             for n, (filepath, image) in enumerate(images):
                 try:
                     mask = self.masks[n]
-                except IndexError as error:
+                except IndexError:
                     callback(
                         '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Composite failed: <b>{}_{}: {}</b></hl>'.format(
                             name, typ, filepath
@@ -199,76 +193,78 @@ class Map_compositor:
                     )
                     continue
 
-                key = Img.getImageTypeFromFilename(typ)  #
+                key = ptk.get_image_type_from_filename(typ)  #
 
                 try:
-                    background = Img.mapBackgrounds[key]
-                    im = self.fillMaskedArea(image, background, mask)
-                    mode = Img.mapModes[key]
+                    background = ptk.Img.map_backgrounds[key]
+                    im = self.fill_masked_area(image, background, mask)
+                    mode = ptk.Img.map_modes[key]
                     im = im.convert(mode)
 
-                except KeyError as error:
-                    background = Img.getBackground(
+                except KeyError:
+                    background = ptk.get_background(
                         image, "RGBA", average=True
                     )  # get the averaged background color.
-                    im = self.fillMaskedArea(image, background, mask)
+                    im = self.fill_masked_area(image, background, mask)
 
                 try:
                     failed_images[typ].append((filepath, im))
-                except KeyError as error:
+                except KeyError:
                     failed_images[typ] = [(filepath, im)]
 
         return failed_images
 
 
-class Map_compositor_slots(Map_compositor):
+class MapCompositorSlots(MapCompositor):
     msg_intro = """<u>Required Substance Painter Export Settings:</u><br>Padding: <b>Dilation + transparent</b> or <b>Dilation + default backgound color</b>.
-		<br><br><u>Works best with map filenames (case insensitive) ending in:</u>"""
+        <br><br><u>Works best with map filenames (case insensitive) ending in:</u>"""
     msg_error_maskCreation = '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Unable to create masks from the source images.<br>To create a mask, at least one set of source maps need to a transparent or have a solid single color backround,<br>alternatively a set of mask maps can be added to the source folder. ex. &lt;map_name&gt;_mask.png</hl>'
     msg_operation_successful = (
         '<br><hl style="color:rgb(0, 255, 255);"><b>COMPLETED.</b></hl>'
     )
 
-    for k, v in Img.mapTypes.items():  # format msg_intro using the mapTypes in imtools.
+    for (
+        k,
+        v,
+    ) in ptk.Img.map_types.items():  # format msg_intro using the map_types in imtools.
         line = "<br><b>{}:</b>  {}".format(k, v)
         msg_intro += line
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        """
-		"""
+        """ """
         self.sb = self.switchboard()
 
-        path = "{}/map_compositor.json".format(self.sb.defaultDir)
-        Json.setJsonFile(path)  # set json file name
+        path = f"{self.sb.default_dir}/map_compositor.json"
+        ptk.set_json_file(path)  # set json file name
 
         # load any saved info:
         try:
             prev_input_dirs = [
-                i for i in Json.getJson("prev_input_dirs") if not i == "/"
+                i for i in ptk.get_json("prev_input_dirs") if not i == "/"
             ]
-            self.sb.ui.cmb000.addItems_(prev_input_dirs[-10:], "/")
-        except TypeError as error:
+            self.sb.ui.cmb000.add(prev_input_dirs[-10:], "/")
+        except TypeError:
             pass
         try:
             prev_output_dirs = [
-                i for i in Json.getJson("prev_output_dirs") if not i == "/"
+                i for i in ptk.get_json("prev_output_dirs") if not i == "/"
             ]
-            self.sb.ui.cmb001.addItems_(prev_output_dirs[-10:], "/", ascending=True)
-        except TypeError as error:
+            self.sb.ui.cmb001.add(prev_output_dirs[-10:], "/", ascending=True)
+        except TypeError:
             pass
         try:
-            prev_map_names = [i for i in Json.getJson("prev_map_names") if not i == "/"]
-            self.sb.ui.cmb002.addItems_(prev_map_names[-10:], "/", ascending=True)
-        except TypeError as error:
+            prev_map_names = [i for i in ptk.get_json("prev_map_names") if not i == "/"]
+            self.sb.ui.cmb002.add(prev_map_names[-10:], "/", ascending=True)
+        except TypeError:
             pass
 
         self.orig_toolTip_txt000 = self.sb.ui.txt000.toolTip()
         self.orig_toolTip_txt001 = self.sb.ui.txt001.toolTip()
-
-        self.sb.ui.txt000.setText(Json.getJson("input_dir"))
-        self.sb.ui.txt001.setText(Json.getJson("output_dir"))
-        self.sb.ui.txt002.setText(Json.getJson("map_name"))
+        #
+        self.sb.ui.txt000.setText(ptk.get_json("input_dir"))
+        self.sb.ui.txt001.setText(ptk.get_json("output_dir"))
+        self.sb.ui.txt002.setText(ptk.get_json("map_name"))
         self.sb.ui.txt003.setText(self.msg_intro)
 
         # disable the browser open buttons if there isn't a directory.
@@ -281,7 +277,7 @@ class Map_compositor_slots(Map_compositor):
     def input_dir(self) -> str:
         """Get the source directory from the user input text field.
 
-        Return:
+        Returns:
                 (str) directory path.
         """
         return self.sb.ui.txt000.text()
@@ -290,7 +286,7 @@ class Map_compositor_slots(Map_compositor):
     def output_dir(self) -> str:
         """Get the export directory from the user input text field.
 
-        Return:
+        Returns:
                 (str) directory path.
         """
         return self.sb.ui.txt001.text()
@@ -299,102 +295,83 @@ class Map_compositor_slots(Map_compositor):
     def map_name(self) -> str:
         """Get the map name from the user input text field.
 
-        Return:
+        Returns:
                 (str)
         """
         return self.sb.ui.txt002.text()
 
-    def cmb000(self, index):
+    def cmb000(self, index, widget):
+        """ """
+        if index > 0:
+            text = widget.itemText(index)
+            self.sb.ui.txt000.setText(text)
+            widget.setCurrentIndex(0)
+
+    def cmb001(self, index, widget):
+        """ """
+        if index > 0:
+            text = widget.itemText(index)
+            self.sb.ui.txt001.setText(text)
+            widget.setCurrentIndex(0)
+
+    def cmb002(self, index, widget):
+        """ """
+        if index > 0:
+            text = widget.itemText(index)
+            self.sb.ui.txt002.setText(text)
+            widget.setCurrentIndex(0)
+
+    def txt000(self, text, widget):
         """ """
         cmb = self.sb.ui.cmb000
-        txt = self.sb.ui.txt000
-
-        if index > 0:
-            text = cmb.itemText(index)
-            txt.setText(text)
-            cmb.setCurrentIndex(0)
-
-    def cmb001(self, index):
-        """ """
-        cmb = self.sb.ui.cmb001
-        txt = self.sb.ui.txt001
-
-        if index > 0:
-            text = cmb.itemText(index)
-            txt.setText(text)
-            cmb.setCurrentIndex(0)
-
-    def cmb002(self, index):
-        """ """
-        cmb = self.sb.ui.cmb002
-        txt = self.sb.ui.txt002
-
-        if index > 0:
-            text = cmb.itemText(index)
-            txt.setText(text)
-            cmb.setCurrentIndex(0)
-
-    def txt000(self, text=None):
-        """ """
-        cmb = self.sb.ui.cmb000
-        txt = self.sb.ui.txt000
-        text = txt.text()
 
         if text:
             curItems = cmb.items[1:]
-            if not text in curItems and File.isValidPath(
-                text
-            ):  # add value to json dict.
-                cmb.addItems_(curItems + [text], "/", ascending=True)
-                Json.setJson("prev_input_dirs", cmb.items)
+            if text not in curItems and ptk.is_valid(text):  # add value to json dict.
+                cmb.add(curItems + [text], "/", ascending=True)
+                ptk.set_json("prev_input_dirs", cmb.items)
 
             self.sb.ui.b003.setDisabled(False)
-            txt.setToolTip(text)
+            widget.setToolTip(text)
         else:
             self.sb.ui.b003.setDisabled(True)
-            txt.setToolTip(self.orig_toolTip_txt000)
+            widget.setToolTip(self.orig_toolTip_txt000)
 
-        Json.setJson("input_dir", text)
+        ptk.set_json("input_dir", text)
 
-    def txt001(self, text=None):
+    def txt001(self, text, widget):
         """ """
         cmb = self.sb.ui.cmb001
-        txt = self.sb.ui.txt001
-        text = txt.text()
 
         if text:
             curItems = cmb.items[1:]
-            if not text in curItems and File.isValidPath(
-                text
-            ):  # add value to json dict.
-                cmb.addItems_(curItems + [text], "/", ascending=True)
-                Json.setJson("prev_output_dirs", cmb.items)
+            if text not in curItems and ptk.is_valid(text):  # add value to json dict.
+                cmb.add(curItems + [text], "/", ascending=True)
+                ptk.set_json("prev_output_dirs", cmb.items)
 
             self.sb.ui.b004.setDisabled(False)
-            txt.setToolTip(text)
+            widget.setToolTip(text)
         else:
             self.sb.ui.b004.setDisabled(True)
-            txt.setToolTip(self.orig_toolTip_txt001)
+            widget.setToolTip(self.orig_toolTip_txt001)
 
-        Json.setJson("output_dir", text)
+        ptk.set_json("output_dir", text)
 
-    def txt002(self, text=None):
+    def txt002(self, text, widget):
         """ """
         cmb = self.sb.ui.cmb002
-        txt = self.sb.ui.txt002
-        text = txt.text()
 
         if text:
             curItems = cmb.items[1:]
-            if not text in cmb.items:  # add value to json dict.
-                cmb.addItems_(curItems + [text], "/", ascending=True)
-                Json.setJson("prev_map_names", cmb.items)
+            if text not in cmb.items:  # add value to json dict.
+                cmb.add(curItems + [text], "/", ascending=True)
+                ptk.set_json("prev_map_names", cmb.items)
 
-        Json.setJson("map_name", text)
+        ptk.set_json("map_name", text)
 
     def b000(self):
         """ """
-        input_dir = Img.getImageDirectory()
+        input_dir = ptk.get_image_dir()
         if input_dir:
             self.sb.ui.txt000.setText(input_dir)
             self.txt000(
@@ -403,7 +380,7 @@ class Map_compositor_slots(Map_compositor):
 
     def b001(self):
         """ """
-        output_dir = Img.getImageDirectory()
+        output_dir = ptk.get_image_dir()
         if output_dir:
             self.sb.ui.txt001.setText(output_dir)
             self.txt001(
@@ -414,7 +391,7 @@ class Map_compositor_slots(Map_compositor):
         """ """
         self.sb.ui.txt003.clear()
 
-        images = Img.getImages(self.input_dir)
+        images = ptk.get_images(self.input_dir)
         self.process(
             images, self.input_dir, self.output_dir, self.map_name, self.callback
         )
@@ -423,14 +400,14 @@ class Map_compositor_slots(Map_compositor):
         """ """
         try:
             os.startfile(self.input_dir)
-        except (FileNotFoundError, TypeError) as error:
+        except (FileNotFoundError, TypeError):
             pass
 
     def b004(self):
         """ """
         try:
             os.startfile(self.output_dir)
-        except (FileNotFoundError, TypeError) as error:
+        except (FileNotFoundError, TypeError):
             pass
 
     def process(self, images, input_dir, output_dir, map_name=None, callback=print):
@@ -438,21 +415,21 @@ class Map_compositor_slots(Map_compositor):
         self.callback("<i>Loading maps ..</i>", clear=True)
 
         if not (input_dir and output_dir):
-            self.sb.ui.txt003.clear() if not "Error:" in self.sb.ui.txt003.toPlainText() else None
+            self.sb.ui.txt003.clear() if "Error:" not in self.sb.ui.txt003.toPlainText() else None
             self.sb.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>'
             )
             return
-        elif not File.isValidPath(input_dir):
-            self.sb.ui.txt003.clear() if not "Error:" in self.sb.ui.txt003.toPlainText() else None
+        elif not ptk.is_valid(input_dir):
+            self.sb.ui.txt003.clear() if "Error:" not in self.sb.ui.txt003.toPlainText() else None
             self.sb.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(
                     input_dir
                 )
             )
             return
-        elif not File.isValidPath(output_dir):
-            self.sb.ui.txt003.clear() if not "Error:" in self.sb.ui.txt003.toPlainText() else None
+        elif not ptk.is_valid(output_dir):
+            self.sb.ui.txt003.clear() if "Error:" not in self.sb.ui.txt003.toPlainText() else None
             self.sb.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(
                     output_dir
@@ -461,27 +438,29 @@ class Map_compositor_slots(Map_compositor):
             return
 
         # save the current lineEdit values to the json file.
-        self.txt000()
-        self.txt001()
-        self.txt002()
+        self.txt000(self.sb.ui.txt000.text(), self.sb.ui.txt000)
+        self.txt001(self.sb.ui.txt001.text(), self.sb.ui.txt001)
+        self.txt002(self.sb.ui.txt002.text(), self.sb.ui.txt002)
 
         if not map_name:
-            map_name = File.formatPath(input_dir, "dir")
+            map_name = ptk.format_path(input_dir, "dir")
 
-        sorted_images = Img.sortImagesByType(images)
+        sorted_images = ptk.sort_images_by_type(images)
         total_maps = (
             1
-            if Img.containsMapTypes(sorted_images, "Normal_DirectX|Normal_OpenGL")
+            if ptk.contains_map_types(sorted_images, "Normal_DirectX|Normal_OpenGL")
             else None
         )  # account for an additional converted normal map.
 
         if self.removeNormalMap:
-            if Img.containsMapTypes(sorted_images, ["Normal_DirectX", "Normal_OpenGL"]):
+            if ptk.contains_map_types(
+                sorted_images, ["Normal_DirectX", "Normal_OpenGL"]
+            ):
                 normal = next(
                     (
                         i
                         for i in sorted_images.keys()  # delete the standard normal map from the output.
-                        if Img.getImageTypeFromFilename(i) == "Normal"
+                        if ptk.get_image_type_from_filename(i) == "Normal"
                     ),
                     False,
                 )
@@ -489,7 +468,7 @@ class Map_compositor_slots(Map_compositor):
                     del sorted_images[normal]
 
         if self.renameMixedAOMap:
-            if "Mixed_AO" in sorted_images and not "AmbientOcclusion" in sorted_images:
+            if "Mixed_AO" in sorted_images and "AmbientOcclusion" not in sorted_images:
                 sorted_images["AmbientOcclusion"] = sorted_images.pop("Mixed_AO")
 
         self.total_maps = len(sorted_images) + total_maps
@@ -502,12 +481,14 @@ class Map_compositor_slots(Map_compositor):
         )
 
         try:
-            failed = self.compositeImages(sorted_images, output_dir, map_name, callback)
+            failed = self.composite_images(
+                sorted_images, output_dir, map_name, callback
+            )
             if failed:
                 callback("<i><br>Processing additional maps that require a mask ..</i>")
-                failed_images = self.retryFailed(failed, map_name, callback)
+                failed_images = self.retry_failed(failed, map_name, callback)
                 if failed_images:
-                    self.compositeImages(failed_images, output_dir, map_name, callback)
+                    self.composite_images(failed_images, output_dir, map_name, callback)
                     callback(self.msg_operation_successful)
                 else:
                     callback(self.msg_error_maskCreation)
@@ -537,21 +518,21 @@ class Map_compositor_slots(Map_compositor):
             QtWidgets.QApplication.processEvents()
 
 
-class Map_compositor_sb(Switchboard):
-    """Constructs the main ui window for `Map_compositor` class."""
+class MapCompositorUI(Switchboard):
+    """Constructs the main ui window for `MapCompositor` class."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.ui_location = "map_compositor.ui"
-        self.slots_location = Map_compositor_slots
+        self.slots_location = MapCompositorSlots
 
         self.ui.txt003.hide()
-        self.ui.toggle_expand.clicked.connect(self.toggleTextEdit)
+        self.ui.toggle_expand.clicked.connect(self.toggle_text_edit)
 
         self.ui.resize(self.ui.sizeHint())
 
-    def toggleTextEdit(self):
+    def toggle_text_edit(self):
         txt = self.ui.txt003
         if txt.isVisible():
             self._height_open = self.ui.height()
@@ -570,11 +551,9 @@ class Map_compositor_sb(Switchboard):
 
 # -----------------------------------------------------------------------------
 
-
-# -----------------------------------------------------------------------------
-
 if __name__ == "__main__":
-    sb = Map_compositor_sb()
+    sb = MapCompositorUI()
+    sb.ui.set_style(theme="dark")
     sb.ui.show(app_exec=True)
 
 # -----------------------------------------------------------------------------
@@ -583,10 +562,3 @@ if __name__ == "__main__":
 
 
 # Deprecated ---------------------
-
-
-# module name
-# print (__name__)
-# ======================================================================
-# Notes
-# ======================================================================
