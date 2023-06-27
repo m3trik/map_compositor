@@ -36,25 +36,6 @@
     <property name="verticalSpacing">
      <number>0</number>
     </property>
-    <item row="2" column="0">
-     <widget class="QTextEdit" name="txt003">
-      <property name="frameShape">
-       <enum>QFrame::NoFrame</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Plain</enum>
-      </property>
-      <property name="verticalScrollBarPolicy">
-       <enum>Qt::ScrollBarAlwaysOff</enum>
-      </property>
-      <property name="horizontalScrollBarPolicy">
-       <enum>Qt::ScrollBarAlwaysOff</enum>
-      </property>
-      <property name="readOnly">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="sizePolicy">
@@ -169,30 +150,6 @@
            </property>
            <property name="text">
             <string>Combine Maps</string>
-           </property>
-          </widget>
-         </item>
-         <item row="9" column="0" colspan="5">
-          <widget class="QPushButton" name="toggle_expand">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>14</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>16777215</width>
-             <height>14</height>
-            </size>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>8</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>• • •</string>
            </property>
           </widget>
          </item>
@@ -484,6 +441,30 @@
            </item>
           </widget>
          </item>
+         <item row="9" column="0" colspan="5">
+          <widget class="CheckBox" name="toggle_expand">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>14</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>14</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>8</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>• • •</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>
@@ -494,10 +475,28 @@
       <property name="sizeConstraint">
        <enum>QLayout::SetMinimumSize</enum>
       </property>
+      <item>
+       <widget class="QTextEdit" name="txt003">
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Plain</enum>
+        </property>
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
    </layout>
-   <zorder>txt003</zorder>
    <zorder>groupBox</zorder>
    <zorder></zorder>
   </widget>
@@ -507,6 +506,11 @@
    <class>ComboBox</class>
    <extends>QComboBox</extends>
    <header>uitk.widgets.comboBox.ComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>uitk.widgets.checkbox.CheckBox.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

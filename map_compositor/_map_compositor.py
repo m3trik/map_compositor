@@ -235,36 +235,22 @@ class MapCompositorSlots(MapCompositor):
         """ """
         self.sb = self.switchboard()
 
-        path = f"{self.sb.default_dir}/map_compositor.json"
-        ptk.set_json_file(path)  # set json file name
-
         # load any saved info:
-        try:
-            prev_input_dirs = [
-                i for i in ptk.get_json("prev_input_dirs") if not i == "/"
-            ]
-            self.sb.ui.cmb000.add(prev_input_dirs[-10:], "/")
-        except TypeError:
-            pass
-        try:
-            prev_output_dirs = [
-                i for i in ptk.get_json("prev_output_dirs") if not i == "/"
-            ]
-            self.sb.ui.cmb001.add(prev_output_dirs[-10:], "/", ascending=True)
-        except TypeError:
-            pass
-        try:
-            prev_map_names = [i for i in ptk.get_json("prev_map_names") if not i == "/"]
-            self.sb.ui.cmb002.add(prev_map_names[-10:], "/", ascending=True)
-        except TypeError:
-            pass
+        prev_input_dirs = self.sb.ui.settings.value("prev_input_dirs", [])
+        prev_input_dirs = [i for i in prev_input_dirs if not i == "/"]
+        self.sb.ui.cmb000.add(prev_input_dirs[-10:], "/")
 
-        self.orig_toolTip_txt000 = self.sb.ui.txt000.toolTip()
-        self.orig_toolTip_txt001 = self.sb.ui.txt001.toolTip()
-        #
-        self.sb.ui.txt000.setText(ptk.get_json("input_dir"))
-        self.sb.ui.txt001.setText(ptk.get_json("output_dir"))
-        self.sb.ui.txt002.setText(ptk.get_json("map_name"))
+        prev_output_dirs = self.sb.ui.settings.value("prev_output_dirs", [])
+        prev_output_dirs = [i for i in prev_output_dirs if not i == "/"]
+        self.sb.ui.cmb001.add(prev_output_dirs[-10:], "/", ascending=True)
+
+        prev_map_names = self.sb.ui.settings.value("prev_map_names", [])
+        prev_map_names = [i for i in prev_map_names if not i == "/"]
+        self.sb.ui.cmb002.add(prev_map_names[-10:], "/", ascending=True)
+
+        self.default_toolTip_txt000 = self.sb.ui.txt000.toolTip()
+        self.default_toolTip_txt001 = self.sb.ui.txt001.toolTip()
+
         self.sb.ui.txt003.setText(self.msg_intro)
 
         # disable the browser open buttons if there isn't a directory.
@@ -278,7 +264,7 @@ class MapCompositorSlots(MapCompositor):
         """Get the source directory from the user input text field.
 
         Returns:
-                (str) directory path.
+            (str) directory path.
         """
         return self.sb.ui.txt000.text()
 
@@ -287,7 +273,7 @@ class MapCompositorSlots(MapCompositor):
         """Get the export directory from the user input text field.
 
         Returns:
-                (str) directory path.
+            (str) directory path.
         """
         return self.sb.ui.txt001.text()
 
@@ -296,7 +282,7 @@ class MapCompositorSlots(MapCompositor):
         """Get the map name from the user input text field.
 
         Returns:
-                (str)
+            (str)
         """
         return self.sb.ui.txt002.text()
 
@@ -327,9 +313,9 @@ class MapCompositorSlots(MapCompositor):
 
         if text:
             curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text):  # add value to json dict.
+            if text not in curItems and ptk.is_valid(text):  # add value to settings.
                 cmb.add(curItems + [text], "/", ascending=True)
-                ptk.set_json("prev_input_dirs", cmb.items)
+                self.sb.ui.settings.setValue("prev_input_dirs", cmb.items)
 
             self.sb.ui.b003.setDisabled(False)
             widget.setToolTip(text)
@@ -337,17 +323,15 @@ class MapCompositorSlots(MapCompositor):
             self.sb.ui.b003.setDisabled(True)
             widget.setToolTip(self.orig_toolTip_txt000)
 
-        ptk.set_json("input_dir", text)
-
     def txt001(self, text, widget):
         """ """
         cmb = self.sb.ui.cmb001
 
         if text:
             curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text):  # add value to json dict.
+            if text not in curItems and ptk.is_valid(text):  # add value to settings.
                 cmb.add(curItems + [text], "/", ascending=True)
-                ptk.set_json("prev_output_dirs", cmb.items)
+                self.sb.ui.settings.setValue("prev_output_dirs", cmb.items)
 
             self.sb.ui.b004.setDisabled(False)
             widget.setToolTip(text)
@@ -355,37 +339,31 @@ class MapCompositorSlots(MapCompositor):
             self.sb.ui.b004.setDisabled(True)
             widget.setToolTip(self.orig_toolTip_txt001)
 
-        ptk.set_json("output_dir", text)
-
     def txt002(self, text, widget):
         """ """
         cmb = self.sb.ui.cmb002
 
         if text:
             curItems = cmb.items[1:]
-            if text not in cmb.items:  # add value to json dict.
+            if text not in cmb.items:  # add value to settings.
                 cmb.add(curItems + [text], "/", ascending=True)
-                ptk.set_json("prev_map_names", cmb.items)
-
-        ptk.set_json("map_name", text)
+                self.sb.ui.settings.setValue("prev_map_names", cmb.items)
 
     def b000(self):
         """ """
         input_dir = ptk.get_image_dir()
         if input_dir:
             self.sb.ui.txt000.setText(input_dir)
-            self.txt000(
-                input_dir
-            )  # set the text AND enable the 'open' button if disabled.
+            # Set the text AND enable the 'open' button if disabled.
+            self.txt000(input_dir, self.sb.ui.txt000)
 
     def b001(self):
         """ """
         output_dir = ptk.get_image_dir()
         if output_dir:
             self.sb.ui.txt001.setText(output_dir)
-            self.txt001(
-                output_dir
-            )  # set the text AND enable the 'open' button if disabled.
+            # Set the text AND enable the 'open' button if disabled.
+            self.txt001(output_dir, self.sb.ui.txt001)
 
     def b002(self):
         """ """
@@ -409,6 +387,19 @@ class MapCompositorSlots(MapCompositor):
             os.startfile(self.output_dir)
         except (FileNotFoundError, TypeError):
             pass
+
+    def toggle_expand(self, state, widget):
+        """ """
+        if state:
+            if not hasattr(self, "_height_open"):
+                self._height_closed = self.sb.ui.height()
+                self._height_open = self.sb.ui.sizeHint().height() + 300
+            self.sb.ui.txt003.show()
+            self.sb.ui.resize(self.sb.ui.width(), self._height_open)
+        else:
+            self._height_open = self.sb.ui.height()
+            self.sb.ui.txt003.hide()
+            self.sb.ui.resize(self.sb.ui.width(), self._height_closed)
 
     def process(self, images, input_dir, output_dir, map_name=None, callback=print):
         """ """
@@ -436,11 +427,6 @@ class MapCompositorSlots(MapCompositor):
                 )
             )
             return
-
-        # save the current lineEdit values to the json file.
-        self.txt000(self.sb.ui.txt000.text(), self.sb.ui.txt000)
-        self.txt001(self.sb.ui.txt001.text(), self.sb.ui.txt001)
-        self.txt002(self.sb.ui.txt002.text(), self.sb.ui.txt002)
 
         if not map_name:
             map_name = ptk.format_path(input_dir, "dir")
@@ -528,25 +514,7 @@ class MapCompositorUI(Switchboard):
         self.slots_location = MapCompositorSlots
 
         self.ui.txt003.hide()
-        self.ui.toggle_expand.clicked.connect(self.toggle_text_edit)
-
         self.ui.resize(self.ui.sizeHint())
-
-    def toggle_text_edit(self):
-        txt = self.ui.txt003
-        if txt.isVisible():
-            self._height_open = self.ui.height()
-            txt.hide()
-            self.ui.resize(self.ui.width(), self._height_closed)
-        else:
-            self._height_closed = self.ui.height()
-            txt.show()
-            self.ui.resize(
-                self.ui.width(),
-                self._height_open
-                if hasattr(self, "_height_open")
-                else self.ui.sizeHint().height() + 100,
-            )
 
 
 # -----------------------------------------------------------------------------
