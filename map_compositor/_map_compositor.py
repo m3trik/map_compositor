@@ -35,7 +35,7 @@ class MapCompositor:
             key = ptk.get_image_type_from_filename(
                 typ
             )  # get key from type value in map_types dict. ie. 'Base_Color' from '_BC' value.
-            bit_depth = ptk.Img.bit_depth[ptk.Img.map_modes[key]]
+            bit_depth = ptk.ImgUtils.bit_depth[ptk.ImgUtils.map_modes[key]]
 
             if (
                 mode == "I"
@@ -73,7 +73,7 @@ class MapCompositor:
             callback(
                 "<u><br><b>{} {} {}bit {}</b> {}x{}:</u>".format(
                     typ.rstrip("_"),
-                    ptk.Img.map_modes[key],
+                    ptk.ImgUtils.map_modes[key],
                     bit_depth,
                     ext.upper(),
                     width,
@@ -113,8 +113,10 @@ class MapCompositor:
 
             try:
                 if map_background[3] == 0:
-                    map_background = ptk.Img.map_backgrounds[key]  # using this may not
-                mode = ptk.Img.map_modes[key]
+                    map_background = ptk.ImgUtils.map_backgrounds[
+                        key
+                    ]  # using this may not
+                mode = ptk.ImgUtils.map_modes[key]
             except KeyError:
                 pass
 
@@ -131,9 +133,9 @@ class MapCompositor:
             # convert normal maps:
             if not ptk.contains_map_types(sorted_images, "Normal_OpenGL"):
                 try:  # convert DirectX to OpenGL
-                    index = ptk.Img.map_types["Normal_DirectX"].index(typ)
+                    index = ptk.ImgUtils.map_types["Normal_DirectX"].index(typ)
 
-                    new_type = ptk.Img.map_types["Normal_OpenGL"][index]
+                    new_type = ptk.ImgUtils.map_types["Normal_OpenGL"][index]
                     inverted_image = ptk.invert_channels(result, "g")
                     inverted_image.save(
                         "{}/{}_{}.{}".format(output_dir, name, new_type, ext)
@@ -154,9 +156,9 @@ class MapCompositor:
                 except ValueError:
                     if not ptk.contains_map_types(sorted_images, "Normal_DirectX"):
                         try:  # convert OpenGL to DirectX
-                            index = ptk.Img.map_types["Normal_OpenGL"].index(typ)
+                            index = ptk.ImgUtils.map_types["Normal_OpenGL"].index(typ)
 
-                            new_type = ptk.Img.map_types["Normal_DirectX"][index]
+                            new_type = ptk.ImgUtils.map_types["Normal_DirectX"][index]
                             inverted_image = ptk.invert_channels(result, "g")
                             inverted_image.save(
                                 "{}/{}_{}.{}".format(output_dir, name, new_type, ext)
@@ -196,9 +198,9 @@ class MapCompositor:
                 key = ptk.get_image_type_from_filename(typ)  #
 
                 try:
-                    background = ptk.Img.map_backgrounds[key]
+                    background = ptk.ImgUtils.map_backgrounds[key]
                     im = self.fill_masked_area(image, background, mask)
-                    mode = ptk.Img.map_modes[key]
+                    mode = ptk.ImgUtils.map_modes[key]
                     im = im.convert(mode)
 
                 except KeyError:
@@ -226,7 +228,9 @@ class MapCompositorSlots(MapCompositor):
     for (
         k,
         v,
-    ) in ptk.Img.map_types.items():  # format msg_intro using the map_types in imtools.
+    ) in (
+        ptk.ImgUtils.map_types.items()
+    ):  # format msg_intro using the map_types in imtools.
         line = "<br><b>{}:</b>  {}".format(k, v)
         msg_intro += line
 
