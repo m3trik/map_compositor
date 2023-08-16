@@ -31,7 +31,7 @@ setuptools.setup(
     ],
     include_package_data=True,
     data_files=ptk.get_dir_contents(
-        "map_compositor", "filepaths", exc_files=["*.py", "*.pyc", "*.json"]
+        "map_compositor", "filepath", exc_files=["*.py", "*.pyc", "*.json"]
     ),  # ie. ('uitk/ui/0', ['uitk/ui/0/init.ui']),
 )
 
@@ -41,6 +41,3 @@ setuptools.setup(
 # --------------------------------------------------------------------------------------------
 # Notes
 # --------------------------------------------------------------------------------------------
-
-
-# Deprecated ------------------------------------

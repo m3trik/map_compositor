@@ -242,15 +242,15 @@ class MapCompositorSlots(MapCompositor):
         # load any saved info:
         prev_input_dirs = self.sb.ui.settings.value("prev_input_dirs", [])
         prev_input_dirs = [i for i in prev_input_dirs if not i == "/"]
-        self.sb.ui.cmb000.add(prev_input_dirs[-10:], "/")
+        self.sb.ui.cmb000.add(prev_input_dirs[-10:], header="/")
 
         prev_output_dirs = self.sb.ui.settings.value("prev_output_dirs", [])
         prev_output_dirs = [i for i in prev_output_dirs if not i == "/"]
-        self.sb.ui.cmb001.add(prev_output_dirs[-10:], "/", ascending=True)
+        self.sb.ui.cmb001.add(prev_output_dirs[-10:], header="/", ascending=True)
 
         prev_map_names = self.sb.ui.settings.value("prev_map_names", [])
         prev_map_names = [i for i in prev_map_names if not i == "/"]
-        self.sb.ui.cmb002.add(prev_map_names[-10:], "/", ascending=True)
+        self.sb.ui.cmb002.add(prev_map_names[-10:], header="/", ascending=True)
 
         self.default_toolTip_txt000 = self.sb.ui.txt000.toolTip()
         self.default_toolTip_txt001 = self.sb.ui.txt001.toolTip()
@@ -318,7 +318,7 @@ class MapCompositorSlots(MapCompositor):
         if text:
             curItems = cmb.items[1:]
             if text not in curItems and ptk.is_valid(text):  # add value to settings.
-                cmb.add(curItems + [text], "/", ascending=True)
+                cmb.add(curItems + [text], header="/", ascending=True)
                 self.sb.ui.settings.setValue("prev_input_dirs", cmb.items)
 
             self.sb.ui.b003.setDisabled(False)
@@ -334,7 +334,7 @@ class MapCompositorSlots(MapCompositor):
         if text:
             curItems = cmb.items[1:]
             if text not in curItems and ptk.is_valid(text):  # add value to settings.
-                cmb.add(curItems + [text], "/", ascending=True)
+                cmb.add(curItems + [text], header="/", ascending=True)
                 self.sb.ui.settings.setValue("prev_output_dirs", cmb.items)
 
             self.sb.ui.b004.setDisabled(False)
@@ -350,7 +350,7 @@ class MapCompositorSlots(MapCompositor):
         if text:
             curItems = cmb.items[1:]
             if text not in cmb.items:  # add value to settings.
-                cmb.add(curItems + [text], "/", ascending=True)
+                cmb.add(curItems + [text], header="/", ascending=True)
                 self.sb.ui.settings.setValue("prev_map_names", cmb.items)
 
     def b000(self):
@@ -515,7 +515,7 @@ class MapCompositorUI(Switchboard):
         super().__init__(parent)
 
         self.ui_location = "map_compositor.ui"
-        self.slots_location = MapCompositorSlots
+        self.slot_location = MapCompositorSlots
 
         self.ui.txt003.hide()
         self.ui.resize(self.ui.sizeHint())
@@ -531,6 +531,3 @@ if __name__ == "__main__":
 # -----------------------------------------------------------------------------
 # Notes
 # -----------------------------------------------------------------------------
-
-
-# Deprecated ---------------------
