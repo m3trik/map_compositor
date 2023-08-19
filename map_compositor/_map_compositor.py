@@ -238,30 +238,31 @@ class MapCompositorSlots(MapCompositor):
         super().__init__(**kwargs)
         """ """
         self.sb = self.switchboard()
+        self.ui = self.sb.map_compositor
 
         # load any saved info:
-        prev_input_dirs = self.sb.ui.settings.value("prev_input_dirs", [])
+        prev_input_dirs = self.ui.settings.value("prev_input_dirs", [])
         prev_input_dirs = [i for i in prev_input_dirs if not i == "/"]
-        self.sb.ui.cmb000.add(prev_input_dirs[-10:], header="/")
+        self.ui.cmb000.add(prev_input_dirs[-10:], header="/")
 
-        prev_output_dirs = self.sb.ui.settings.value("prev_output_dirs", [])
+        prev_output_dirs = self.ui.settings.value("prev_output_dirs", [])
         prev_output_dirs = [i for i in prev_output_dirs if not i == "/"]
-        self.sb.ui.cmb001.add(prev_output_dirs[-10:], header="/", ascending=True)
+        self.ui.cmb001.add(prev_output_dirs[-10:], header="/", ascending=True)
 
-        prev_map_names = self.sb.ui.settings.value("prev_map_names", [])
+        prev_map_names = self.ui.settings.value("prev_map_names", [])
         prev_map_names = [i for i in prev_map_names if not i == "/"]
-        self.sb.ui.cmb002.add(prev_map_names[-10:], header="/", ascending=True)
+        self.ui.cmb002.add(prev_map_names[-10:], header="/", ascending=True)
 
-        self.default_toolTip_txt000 = self.sb.ui.txt000.toolTip()
-        self.default_toolTip_txt001 = self.sb.ui.txt001.toolTip()
+        self.default_toolTip_txt000 = self.ui.txt000.toolTip()
+        self.default_toolTip_txt001 = self.ui.txt001.toolTip()
 
-        self.sb.ui.txt003.setText(self.msg_intro)
+        self.ui.txt003.setText(self.msg_intro)
 
         # disable the browser open buttons if there isn't a directory.
-        if not self.sb.ui.txt000.text():
-            self.sb.ui.b003.setDisabled(True)
-        if not self.sb.ui.txt001.text():
-            self.sb.ui.b004.setDisabled(True)
+        if not self.ui.txt000.text():
+            self.ui.b003.setDisabled(True)
+        if not self.ui.txt001.text():
+            self.ui.b004.setDisabled(True)
 
     @property
     def input_dir(self) -> str:
@@ -270,7 +271,7 @@ class MapCompositorSlots(MapCompositor):
         Returns:
             (str) directory path.
         """
-        return self.sb.ui.txt000.text()
+        return self.ui.txt000.text()
 
     @property
     def output_dir(self) -> str:
@@ -279,7 +280,7 @@ class MapCompositorSlots(MapCompositor):
         Returns:
             (str) directory path.
         """
-        return self.sb.ui.txt001.text()
+        return self.ui.txt001.text()
 
     @property
     def map_name(self) -> str:
@@ -288,90 +289,90 @@ class MapCompositorSlots(MapCompositor):
         Returns:
             (str)
         """
-        return self.sb.ui.txt002.text()
+        return self.ui.txt002.text()
 
     def cmb000(self, index, widget):
         """ """
         if index > 0:
             text = widget.itemText(index)
-            self.sb.ui.txt000.setText(text)
+            self.ui.txt000.setText(text)
             widget.setCurrentIndex(0)
 
     def cmb001(self, index, widget):
         """ """
         if index > 0:
             text = widget.itemText(index)
-            self.sb.ui.txt001.setText(text)
+            self.ui.txt001.setText(text)
             widget.setCurrentIndex(0)
 
     def cmb002(self, index, widget):
         """ """
         if index > 0:
             text = widget.itemText(index)
-            self.sb.ui.txt002.setText(text)
+            self.ui.txt002.setText(text)
             widget.setCurrentIndex(0)
 
     def txt000(self, text, widget):
         """ """
-        cmb = self.sb.ui.cmb000
+        cmb = self.ui.cmb000
 
         if text:
             curItems = cmb.items[1:]
             if text not in curItems and ptk.is_valid(text):  # add value to settings.
                 cmb.add(curItems + [text], header="/", ascending=True)
-                self.sb.ui.settings.setValue("prev_input_dirs", cmb.items)
+                self.ui.settings.setValue("prev_input_dirs", cmb.items)
 
-            self.sb.ui.b003.setDisabled(False)
+            self.ui.b003.setDisabled(False)
             widget.setToolTip(text)
         else:
-            self.sb.ui.b003.setDisabled(True)
+            self.ui.b003.setDisabled(True)
             widget.setToolTip(self.orig_toolTip_txt000)
 
     def txt001(self, text, widget):
         """ """
-        cmb = self.sb.ui.cmb001
+        cmb = self.ui.cmb001
 
         if text:
             curItems = cmb.items[1:]
             if text not in curItems and ptk.is_valid(text):  # add value to settings.
                 cmb.add(curItems + [text], header="/", ascending=True)
-                self.sb.ui.settings.setValue("prev_output_dirs", cmb.items)
+                self.ui.settings.setValue("prev_output_dirs", cmb.items)
 
-            self.sb.ui.b004.setDisabled(False)
+            self.ui.b004.setDisabled(False)
             widget.setToolTip(text)
         else:
-            self.sb.ui.b004.setDisabled(True)
+            self.ui.b004.setDisabled(True)
             widget.setToolTip(self.orig_toolTip_txt001)
 
     def txt002(self, text, widget):
         """ """
-        cmb = self.sb.ui.cmb002
+        cmb = self.ui.cmb002
 
         if text:
             curItems = cmb.items[1:]
             if text not in cmb.items:  # add value to settings.
                 cmb.add(curItems + [text], header="/", ascending=True)
-                self.sb.ui.settings.setValue("prev_map_names", cmb.items)
+                self.ui.settings.setValue("prev_map_names", cmb.items)
 
     def b000(self):
         """ """
         input_dir = ptk.get_image_dir()
         if input_dir:
-            self.sb.ui.txt000.setText(input_dir)
+            self.ui.txt000.setText(input_dir)
             # Set the text AND enable the 'open' button if disabled.
-            self.txt000(input_dir, self.sb.ui.txt000)
+            self.txt000(input_dir, self.ui.txt000)
 
     def b001(self):
         """ """
         output_dir = ptk.get_image_dir()
         if output_dir:
-            self.sb.ui.txt001.setText(output_dir)
+            self.ui.txt001.setText(output_dir)
             # Set the text AND enable the 'open' button if disabled.
-            self.txt001(output_dir, self.sb.ui.txt001)
+            self.txt001(output_dir, self.ui.txt001)
 
     def b002(self):
         """ """
-        self.sb.ui.txt003.clear()
+        self.ui.txt003.clear()
 
         images = ptk.get_images(self.input_dir)
         self.process(
@@ -396,36 +397,36 @@ class MapCompositorSlots(MapCompositor):
         """ """
         if state:
             if not hasattr(self, "_height_open"):
-                self._height_closed = self.sb.ui.height()
-                self._height_open = self.sb.ui.sizeHint().height() + 300
-            self.sb.ui.txt003.show()
-            self.sb.ui.resize(self.sb.ui.width(), self._height_open)
+                self._height_closed = self.ui.height()
+                self._height_open = self.ui.sizeHint().height() + 300
+            self.ui.txt003.show()
+            self.ui.resize(self.ui.width(), self._height_open)
         else:
-            self._height_open = self.sb.ui.height()
-            self.sb.ui.txt003.hide()
-            self.sb.ui.resize(self.sb.ui.width(), self._height_closed)
+            self._height_open = self.ui.height()
+            self.ui.txt003.hide()
+            self.ui.resize(self.ui.width(), self._height_closed)
 
     def process(self, images, input_dir, output_dir, map_name=None, callback=print):
         """ """
         self.callback("<i>Loading maps ..</i>", clear=True)
 
         if not (input_dir and output_dir):
-            self.sb.ui.txt003.clear() if "Error:" not in self.sb.ui.txt003.toPlainText() else None
-            self.sb.ui.txt003.append(
+            self.ui.txt003.clear() if "Error:" not in self.ui.txt003.toPlainText() else None
+            self.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>'
             )
             return
         elif not ptk.is_valid(input_dir):
-            self.sb.ui.txt003.clear() if "Error:" not in self.sb.ui.txt003.toPlainText() else None
-            self.sb.ui.txt003.append(
+            self.ui.txt003.clear() if "Error:" not in self.ui.txt003.toPlainText() else None
+            self.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(
                     input_dir
                 )
             )
             return
         elif not ptk.is_valid(output_dir):
-            self.sb.ui.txt003.clear() if "Error:" not in self.sb.ui.txt003.toPlainText() else None
-            self.sb.ui.txt003.append(
+            self.ui.txt003.clear() if "Error:" not in self.ui.txt003.toPlainText() else None
+            self.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(
                     output_dir
                 )
@@ -438,7 +439,9 @@ class MapCompositorSlots(MapCompositor):
         sorted_images = ptk.sort_images_by_type(images)
         total_maps = (
             1
-            if ptk.contains_map_types(sorted_images, "Normal_DirectX|Normal_OpenGL")
+            if ptk.contains_map_types(
+                sorted_images, ["Normal_DirectX", "Normal_OpenGL"]
+            )
             else None
         )  # account for an additional converted normal map.
 
@@ -496,37 +499,43 @@ class MapCompositorSlots(MapCompositor):
     def callback(self, string, progress=None, total_progress=None, clear=False):
         """ """
         if clear:
-            self.sb.ui.txt003.clear()
-        self.sb.ui.txt003.append(string)
+            self.ui.txt003.clear()
+        self.ui.txt003.append(string)
 
         if progress is not None:
-            self.sb.ui.progressBar.setValue(progress)
+            self.ui.progressBar.setValue(progress)
 
         if total_progress is not None:
-            self.sb.ui.progressBar_total.setValue(total_progress)
+            self.ui.progressBar_total.setValue(total_progress)
 
             QtWidgets.QApplication.processEvents()
 
 
-class MapCompositorUI(Switchboard):
-    """Constructs the main ui window for `MapCompositor` class."""
+class MapCompositorUI:
+    def __new__(cls, *args, **kwargs):
+        sb = Switchboard(
+            *args,
+            ui_location="map_compositor.ui",
+            slot_location=MapCompositorSlots,
+            **kwargs,
+        )
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+        ui = sb.map_compositor
+        ui.set_attributes(WA_TranslucentBackground=True)
+        # ui.set_flags(Tool=True, FramelessWindowHint=True, WindowStaysOnTopHint=True)
+        ui.set_style(theme="dark", style_class="translucentBgWithBorder")
 
-        self.ui_location = "map_compositor.ui"
-        self.slot_location = MapCompositorSlots
+        ui.txt003.hide()
+        ui.resize(ui.sizeHint())
 
-        self.ui.txt003.hide()
-        self.ui.resize(self.ui.sizeHint())
+        return ui
 
 
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    sb = MapCompositorUI()
-    sb.ui.set_style(theme="dark")
-    sb.ui.show(app_exec=True)
+    ui = MapCompositorUI()
+    ui.show(pos="screen", app_exec=True)
 
 # -----------------------------------------------------------------------------
 # Notes
