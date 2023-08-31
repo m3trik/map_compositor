@@ -356,7 +356,9 @@ class MapCompositorSlots(MapCompositor):
 
     def b000(self):
         """ """
-        input_dir = ptk.get_image_dir()
+        input_dir = self.sb.dir_dialog(
+            title="Select a directory containing image files."
+        )
         if input_dir:
             self.ui.txt000.setText(input_dir)
             # Set the text AND enable the 'open' button if disabled.
@@ -364,7 +366,9 @@ class MapCompositorSlots(MapCompositor):
 
     def b001(self):
         """ """
-        output_dir = ptk.get_image_dir()
+        output_dir = self.sb.dir_dialog(
+            title="Select a directory containing image files."
+        )
         if output_dir:
             self.ui.txt001.setText(output_dir)
             # Set the text AND enable the 'open' button if disabled.
