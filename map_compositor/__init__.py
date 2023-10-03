@@ -1,5 +1,5 @@
-from map_compositor._map_compositor import *
+# !/usr/bin/python
+# coding=utf-8
 
-
-__package__ = "map_compositor"
-__version__ = "0.5.0"
+__package__ = "map-compositor"
+__version__ = "0.5.8"

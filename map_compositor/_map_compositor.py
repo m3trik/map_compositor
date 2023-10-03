@@ -7,10 +7,6 @@ import pythontk as ptk
 from uitk.switchboard import Switchboard
 
 
-__package__ = "map-compositor"
-__version__ = "0.5.8"
-
-
 class MapCompositor:
     """ """
 
