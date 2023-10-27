@@ -289,24 +289,18 @@ class MapCompositorSlots(MapCompositor):
 
     def cmb000(self, index, widget):
         """ """
-        if index > 0:
-            text = widget.itemText(index)
-            self.ui.txt000.setText(text)
-            widget.setCurrentIndex(0)
+        text = widget.itemText(index)
+        self.ui.txt000.setText(text)
 
     def cmb001(self, index, widget):
         """ """
-        if index > 0:
-            text = widget.itemText(index)
-            self.ui.txt001.setText(text)
-            widget.setCurrentIndex(0)
+        text = widget.itemText(index)
+        self.ui.txt001.setText(text)
 
     def cmb002(self, index, widget):
         """ """
-        if index > 0:
-            text = widget.itemText(index)
-            self.ui.txt002.setText(text)
-            widget.setCurrentIndex(0)
+        text = widget.itemText(index)
+        self.ui.txt002.setText(text)
 
     def txt000(self, text, widget):
         """ """
