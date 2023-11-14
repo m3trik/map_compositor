@@ -3,7 +3,7 @@
 
 ### Map Compositor
 
-Effortless Composition of Texture Maps: Map Compositor allows you to seamlessly combine multiple texture maps of a particular type (such as Base Color, Normal Map, etc.) into single, unified images.
+Map Compositor allows you to seamlessly combine multiple texture maps of a particular type (such as Base Color, Normal Map, etc.) into single, unified images.
 
 Able to convert between different Normal Map formats during the compositing process (DirectX to OpenGL and vice versa).
 
