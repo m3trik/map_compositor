@@ -509,12 +509,13 @@ class MapCompositorUI:
     def __new__(cls, *args, **kwargs):
         sb = Switchboard(
             *args,
-            ui_location="map_compositor.ui",
-            slot_location=MapCompositorSlots,
+            ui_location="./map_compositor.ui",
             **kwargs,
         )
-
         ui = sb.map_compositor
+
+        # ui.settings.clear()
+        sb.set_slot_class(ui, MapCompositorSlots)  # Set explicitly for pyinstaller.
         ui.set_attributes(WA_TranslucentBackground=True)
         # ui.set_flags(Tool=True, FramelessWindowHint=True, WindowStaysOnTopHint=True)
         ui.set_style(theme="dark", style_class="translucentBgWithBorder")
