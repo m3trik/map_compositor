@@ -14,4 +14,4 @@ Able to convert between different Normal Map formats during the compositing proc
 
 ![Map Compositor Demo](https://raw.githubusercontent.com/m3trik/map-compositor/master/docs/map-compositor-demo.png)
 
-**Latest Release:** [v0.5.8](https://github.com/m3trik/map-compositor/releases/tag/v0.5.8)
+**Latest Release:** [v0.5.9](https://github.com/m3trik/map-compositor/releases/tag/v0.5.9)
