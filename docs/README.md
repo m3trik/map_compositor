@@ -12,6 +12,6 @@ Able to convert between different Normal Map formats during the compositing proc
 *A UV texture map compositor*
 <!-- short_description_end -->
 
-![Map Compositor Demo](https://raw.githubusercontent.com/m3trik/map-compositor/master/docs/map-compositor-demo.png)
+![Map Compositor Demo](https://raw.githubusercontent.com/m3trik/map_compositor/master/docs/map_compositor_demo.png)
 
-**Latest Release:** [v0.5.8](https://github.com/m3trik/map-compositor/releases/tag/v0.5.8)
+**Latest Release:** [v0.5.9](https://github.com/m3trik/map_compositor/releases/tag/v0.5.9)
