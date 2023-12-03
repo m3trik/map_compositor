@@ -23,7 +23,6 @@ setuptools.setup(
     author="Ryan Simpson",
     author_email="m3trik@outlook.com",
     license="LGPLv3",
-    data_files=[("", ["COPYING.LESSER"])],
     description=".",
     long_description=long_description,
     long_description_content_type="text/markdown",

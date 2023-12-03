@@ -1,10 +1,16 @@
 # !/usr/bin/python
 # coding=utf-8
 import os
-from PySide2 import QtWidgets
+from PySide2.QtCore import QObject, Signal
 from PIL import Image
 import pythontk as ptk
 from uitk.switchboard import Switchboard
+
+
+class MapCompositorSignals(QObject):
+    message = Signal(str)
+    progress = Signal(float)
+    total_progress = Signal(float)
 
 
 class MapCompositor:
@@ -16,7 +22,10 @@ class MapCompositor:
     total_progress = 0
     masks = []
 
-    def composite_images(self, sorted_images, output_dir, name="", callback=print):
+    def __init__(self):
+        self.signals = MapCompositorSignals()
+
+    def composite_images(self, sorted_images, output_dir, name=""):
         """ """
         failed = {}
         for typ, images in sorted_images.items():
@@ -28,90 +37,70 @@ class MapCompositor:
             mode = first_image.mode
             ext = ptk.format_path(filepath0, "ext")
 
-            key = ptk.get_image_type_from_filename(
-                typ
-            )  # get key from type value in map_types dict. ie. 'Base_Color' from '_BC' value.
+            # Get key from type value in map_types dict. ie. 'Base_Color' from '_BC' value.
+            key = ptk.get_image_type_from_filename(typ)
             bit_depth = ptk.ImgUtils.bit_depth[ptk.ImgUtils.map_modes[key]]
 
-            if (
-                mode == "I"
-            ):  # unable to create mode I 32bit. use rgb until a fix is found.
+            # Unable to create mode I 32bit. use rgb until a fix is found.
+            if mode == "I":
                 first_image = first_image.convert("RGB")
 
-            map_background = ptk.get_background(
-                first_image, "RGBA"
-            )  # get the image background in RGBA format.
-            map_background2 = ptk.get_background(
-                second_image, "RGBA"
-            )  # get the image background in RGBA format.
+            # Get the image background in RGBA format.
+            map_background = ptk.get_background(first_image, "RGBA")
+            # Get the image background in RGBA format.
+            map_background2 = ptk.get_background(second_image, "RGBA")
 
-            if not (
-                map_background and map_background == map_background2
-            ):  # if not a uniform background, or the background of map1 is not equal to map2:
+            # if not a uniform background, or the background of map1 is not equal to map2:
+            if not (map_background and map_background == map_background2):
                 failed[typ] = images
                 continue
 
             else:
                 if not self.masks and map_background[3] == 0:
-                    callback(
-                        "<i><br>Attempting to create masks using source <b>{}</b> ..</i>".format(
-                            typ
-                        )
+                    self.signals.message.emit(
+                        f"<i><br>Attempting to create masks using source <b>{typ}</b> ..</i>"
                     )
-                    images = [
-                        i[1] for i in images
-                    ]  # get the images from the (filepath, image) list of tuples.
+                    # Get the images from the (filepath, image) list of tuples.
+                    images = [i[1] for i in images]
                     self.masks = ptk.create_mask(images, map_background)
                     # debug: [self.save_image(i, name=output_dir+'/'+str(n)+'_mask.png') for n, i in enumerate(self.masks)]
 
             length = len(remaining_images) if len(remaining_images) > 1 else 1
 
-            callback(
-                "<u><br><b>{} {} {}bit {}</b> {}x{}:</u>".format(
-                    typ.rstrip("_"),
-                    ptk.ImgUtils.map_modes[key],
-                    bit_depth,
-                    ext.upper(),
-                    width,
-                    height,
-                )
+            self.signals.message.emit(
+                f"<u><br><b>{typ.rstrip('_')} {ptk.ImgUtils.map_modes[key]} {bit_depth}bit {ext.upper()}</b> {width}x{height}:</u>"
             )
+
             self.total_progress += 1
-            callback(
-                ptk.format_path(filepath0, "file"),
-                (1 / length) * 100,
-                (self.total_progress / self.total_len) * 100,
-            )  # first_image self.total_progress.
+            self.signals.message.emit(ptk.format_path(filepath0, "file"))
+            # self.signals.progress.emit((1 / length) * 100)
+            self.signals.progress.emit((self.total_progress / self.total_len) * 100)
 
             composited_image = first_image.convert("RGBA")
             for n, (file, im) in enumerate(remaining_images, 1):
                 self.total_progress += 1
-                callback(
-                    ptk.format_path(file, "file"),
-                    (n / length) * 100,
-                    (self.total_progress / self.total_len) * 100,
-                )  # remaining_images self.total_progress.
+                self.signals.message.emit(ptk.format_path(file, "file"))
+                # self.signals.progress.emit((n / length) * 100)
+                self.signals.progress.emit((self.total_progress / self.total_len) * 100)
 
                 if mode == "I":
                     im = im.convert("RGB")
                 im = ptk.replace_color(im, from_color=map_background, mode="RGBA")
 
-                try:
+                try:  # (background, foreground)
                     composited_image = Image.alpha_composite(
                         composited_image, im.convert("RGBA")
-                    )  # (background, foreground)
-                except ValueError as error:
-                    callback(
+                    )
+                except ValueError as e:
+                    self.signals.message.emit(
                         '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> '
-                        + str(error)
+                        + str(e)
                         + "</hl>"
                     )
 
             try:
                 if map_background[3] == 0:
-                    map_background = ptk.ImgUtils.map_backgrounds[
-                        key
-                    ]  # using this may not
+                    map_background = ptk.ImgUtils.map_backgrounds[key]
                 mode = ptk.ImgUtils.map_modes[key]
             except KeyError:
                 pass
@@ -120,63 +109,46 @@ class MapCompositor:
                 "RGBA", composited_image.size, map_background[:3] + (255,)
             )
             result.paste(composited_image, mask=composited_image)
-            result = (
-                result.convert(mode) if not mode == "I" else result.convert("RGB")
-            )  # return im to it's original mode.
+            # Return image to it's original mode.
+            result = result.convert(mode) if not mode == "I" else result.convert("RGB")
 
-            result.save("{}/{}_{}.{}".format(output_dir, name, typ, ext))
+            result.save(f"{output_dir}/{name}_{typ}.{ext}")
 
-            # convert normal maps:
+            # Convert normal maps:
             if not ptk.contains_map_types(sorted_images, "Normal_OpenGL"):
-                try:  # convert DirectX to OpenGL
+                try:  # Convert DirectX to OpenGL
                     index = ptk.ImgUtils.map_types["Normal_DirectX"].index(typ)
 
                     new_type = ptk.ImgUtils.map_types["Normal_OpenGL"][index]
                     inverted_image = ptk.invert_channels(result, "g")
-                    inverted_image.save(
-                        "{}/{}_{}.{}".format(output_dir, name, new_type, ext)
-                    )
+                    inverted_image.save(f"{output_dir}/{name}_{new_type}.{ext}")
 
-                    callback(
-                        "<br><u><b>{} {} {}bit {}</b> {}x{}:</u>".format(
-                            new_type.rstrip("_"),
-                            mode,
-                            bit_depth,
-                            ext.upper(),
-                            width,
-                            height,
-                        )
+                    self.signals.message.emit(
+                        f"<br><u><b>{new_type.rstrip('_')} {mode} {bit_depth}bit {ext.upper()}</b> {width}x{height}:</u>"
                     )
-                    callback("Created using {}_{}.{}".format(name, typ, ext))
+                    self.signals.message.emit(f"Created using {name}_{typ}.{ext}")
 
                 except ValueError:
                     if not ptk.contains_map_types(sorted_images, "Normal_DirectX"):
-                        try:  # convert OpenGL to DirectX
+                        try:  # Convert OpenGL to DirectX
                             index = ptk.ImgUtils.map_types["Normal_OpenGL"].index(typ)
 
                             new_type = ptk.ImgUtils.map_types["Normal_DirectX"][index]
                             inverted_image = ptk.invert_channels(result, "g")
-                            inverted_image.save(
-                                "{}/{}_{}.{}".format(output_dir, name, new_type, ext)
-                            )
+                            inverted_image.save(f"{output_dir}/{name}_{new_type}.{ext}")
 
-                            callback(
-                                "<br><u><b>{} {} {}bit {}</b> {}x{}:</u>".format(
-                                    new_type.rstrip("_"),
-                                    mode,
-                                    bit_depth,
-                                    ext.upper(),
-                                    width,
-                                    height,
-                                )
+                            self.signals.message.emit(
+                                f"<br><u><b>{new_type.rstrip('_')} {mode} {bit_depth}bit {ext.upper()}</b> {width}x{height}:</u>"
                             )
-                            callback("Created using {}_{}.{}".format(name, typ, ext))
+                            self.signals.message.emit(
+                                f"Created using {name}_{typ}.{ext}"
+                            )
 
                         except ValueError:
                             continue
         return failed
 
-    def retry_failed(self, failed, name, callback):
+    def retry_failed(self, failed, name):
         """ """
         failed_images = {}
         for typ, images in failed.items():
@@ -184,10 +156,8 @@ class MapCompositor:
                 try:
                     mask = self.masks[n]
                 except IndexError:
-                    callback(
-                        '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Composite failed: <b>{}_{}: {}</b></hl>'.format(
-                            name, typ, filepath
-                        )
+                    self.signals.message.emit(
+                        f'<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Composite failed: <b>{name}_{typ}: {filepath}</b></hl>'
                     )
                     continue
 
@@ -195,15 +165,14 @@ class MapCompositor:
 
                 try:
                     background = ptk.ImgUtils.map_backgrounds[key]
-                    im = self.fill_masked_area(image, background, mask)
+                    im = ptk.ImgUtils.fill_masked_area(image, background, mask)
                     mode = ptk.ImgUtils.map_modes[key]
                     im = im.convert(mode)
 
                 except KeyError:
-                    background = ptk.get_background(
-                        image, "RGBA", average=True
-                    )  # get the averaged background color.
-                    im = self.fill_masked_area(image, background, mask)
+                    # Get the averaged background color.
+                    background = ptk.get_background(image, "RGBA", average=True)
+                    im = ptk.ImgUtils.fill_masked_area(image, background, mask)
 
                 try:
                     failed_images[typ].append((filepath, im))
@@ -221,13 +190,9 @@ class MapCompositorSlots(MapCompositor):
         '<br><hl style="color:rgb(0, 255, 255);"><b>COMPLETED.</b></hl>'
     )
 
-    for (
-        k,
-        v,
-    ) in (
-        ptk.ImgUtils.map_types.items()
-    ):  # format msg_intro using the map_types in imtools.
-        line = "<br><b>{}:</b>  {}".format(k, v)
+    # Format msg_intro using the map_types in imtools.
+    for k, v in ptk.ImgUtils.map_types.items():
+        line = f"<br><b>{k}:</b>  {v}"
         msg_intro += line
 
     def __init__(self, **kwargs):
@@ -260,6 +225,9 @@ class MapCompositorSlots(MapCompositor):
         if not self.ui.txt001.text():
             self.ui.b004.setDisabled(True)
 
+        self.signals.message.connect(self.set_message)
+        self.signals.progress.connect(self.set_progress)
+
     @property
     def input_dir(self) -> str:
         """Get the source directory from the user input text field.
@@ -288,27 +256,27 @@ class MapCompositorSlots(MapCompositor):
         return self.ui.txt002.text()
 
     def cmb000(self, index, widget):
-        """ """
+        """Previous Source Directories"""
         text = widget.itemText(index)
         self.ui.txt000.setText(text)
 
     def cmb001(self, index, widget):
-        """ """
+        """Previous Destination Directories"""
         text = widget.itemText(index)
         self.ui.txt001.setText(text)
 
     def cmb002(self, index, widget):
-        """ """
+        """Previous Map Names"""
         text = widget.itemText(index)
         self.ui.txt002.setText(text)
 
     def txt000(self, text, widget):
-        """ """
+        """Source Directory"""
         cmb = self.ui.cmb000
 
         if text:
             curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text):  # add value to settings.
+            if text not in curItems and ptk.is_valid(text):  # Add value to settings.
                 cmb.add(curItems + [text], header="/", ascending=True)
                 self.ui.settings.setValue("prev_input_dirs", cmb.items)
 
@@ -319,12 +287,12 @@ class MapCompositorSlots(MapCompositor):
             widget.setToolTip(self.orig_toolTip_txt000)
 
     def txt001(self, text, widget):
-        """ """
+        """Destination Directory"""
         cmb = self.ui.cmb001
 
         if text:
             curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text):  # add value to settings.
+            if text not in curItems and ptk.is_valid(text):  # Add value to settings.
                 cmb.add(curItems + [text], header="/", ascending=True)
                 self.ui.settings.setValue("prev_output_dirs", cmb.items)
 
@@ -335,7 +303,7 @@ class MapCompositorSlots(MapCompositor):
             widget.setToolTip(self.orig_toolTip_txt001)
 
     def txt002(self, text, widget):
-        """ """
+        """Map Name"""
         cmb = self.ui.cmb002
 
         if text:
@@ -345,7 +313,7 @@ class MapCompositorSlots(MapCompositor):
                 self.ui.settings.setValue("prev_map_names", cmb.items)
 
     def b000(self):
-        """ """
+        """Select Input Directory"""
         input_dir = self.sb.dir_dialog(
             title="Select a directory containing image files."
         )
@@ -355,23 +323,21 @@ class MapCompositorSlots(MapCompositor):
             self.txt000(input_dir, self.ui.txt000)
 
     def b001(self):
-        """ """
-        output_dir = self.sb.dir_dialog(
-            title="Select a directory containing image files."
-        )
+        """Select Output Directory"""
+        output_dir = self.sb.dir_dialog(title="Select an output directory.")
         if output_dir:
             self.ui.txt001.setText(output_dir)
             # Set the text AND enable the 'open' button if disabled.
             self.txt001(output_dir, self.ui.txt001)
 
     def b002(self):
-        """ """
+        """Combine Maps"""
         self.ui.txt003.clear()
+        self.signals.message.emit("<i>Loading maps ..</i>")
+        self.sb.app.processEvents()
 
         images = ptk.get_images(self.input_dir)
-        self.process(
-            images, self.input_dir, self.output_dir, self.map_name, self.callback
-        )
+        self.process(images, self.input_dir, self.output_dir, self.map_name)
 
     def b003(self):
         """ """
@@ -387,43 +353,18 @@ class MapCompositorSlots(MapCompositor):
         except (FileNotFoundError, TypeError):
             pass
 
-    def toggle_expand(self, state, widget):
+    def process(self, images, input_dir, output_dir, map_name=None):
         """ """
-        if state:
-            if not hasattr(self, "_height_open"):
-                self._height_closed = self.ui.height()
-                self._height_open = self.ui.sizeHint().height() + 300
-            self.ui.txt003.show()
-            self.ui.resize(self.ui.width(), self._height_open)
-        else:
-            self._height_open = self.ui.height()
-            self.ui.txt003.hide()
-            self.ui.resize(self.ui.width(), self._height_closed)
-
-    def process(self, images, input_dir, output_dir, map_name=None, callback=print):
-        """ """
-        self.callback("<i>Loading maps ..</i>", clear=True)
 
         if not (input_dir and output_dir):
-            self.ui.txt003.clear() if "Error:" not in self.ui.txt003.toPlainText() else None
             self.ui.txt003.append(
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>'
             )
             return
-        elif not ptk.is_valid(input_dir):
-            self.ui.txt003.clear() if "Error:" not in self.ui.txt003.toPlainText() else None
+        elif not ptk.is_valid(input_dir) or not ptk.is_valid(output_dir):
+            invalid_dir = input_dir if not ptk.is_valid(input_dir) else output_dir
             self.ui.txt003.append(
-                '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(
-                    input_dir
-                )
-            )
-            return
-        elif not ptk.is_valid(output_dir):
-            self.ui.txt003.clear() if "Error:" not in self.ui.txt003.toPlainText() else None
-            self.ui.txt003.append(
-                '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{}</b>.</hl>'.format(
-                    output_dir
-                )
+                f'<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{invalid_dir}</b>.</hl>'
             )
             return
 
@@ -437,7 +378,7 @@ class MapCompositorSlots(MapCompositor):
                 sorted_images, ["Normal_DirectX", "Normal_OpenGL"]
             )
             else None
-        )  # account for an additional converted normal map.
+        )  # Account for an additional converted normal map.
 
         if self.removeNormalMap:
             if ptk.contains_map_types(
@@ -446,7 +387,7 @@ class MapCompositorSlots(MapCompositor):
                 normal = next(
                     (
                         i
-                        for i in sorted_images.keys()  # delete the standard normal map from the output.
+                        for i in sorted_images.keys()  # Delete the standard normal map from the output.
                         if ptk.get_image_type_from_filename(i) == "Normal"
                     ),
                     False,
@@ -461,48 +402,37 @@ class MapCompositorSlots(MapCompositor):
         self.total_maps = len(sorted_images) + total_maps
         self.total_len = sum([len(i) for i in sorted_images.values()])
 
-        callback(
-            "<i>Sorting <b>{}</b> images, into <b>{}</b> maps ..</i>".format(
-                self.total_len, self.total_maps
-            )
+        self.signals.message.emit(
+            f"<i>Sorting <b>{self.total_len}</b> images, into <b>{self.total_maps}</b> maps ..</i>"
         )
 
         try:
-            failed = self.composite_images(
-                sorted_images, output_dir, map_name, callback
-            )
+            failed = self.composite_images(sorted_images, output_dir, map_name)
             if failed:
-                callback("<i><br>Processing additional maps that require a mask ..</i>")
-                failed_images = self.retry_failed(failed, map_name, callback)
-                if failed_images:
-                    self.composite_images(failed_images, output_dir, map_name, callback)
-                    callback(self.msg_operation_successful)
-                else:
-                    callback(self.msg_error_maskCreation)
-            else:
-                callback(self.msg_operation_successful)
-
-        except Exception as error:
-            callback(
-                '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Operation encountered the following error:<br>{}</hl>'.format(
-                    error
+                self.signals.message.emit(
+                    "<i><br>Processing additional maps that require a mask ..</i>"
                 )
+                failed_images = self.retry_failed(failed, map_name)
+                if failed_images:
+                    self.composite_images(failed_images, output_dir, map_name)
+                    self.signals.message.emit(self.msg_operation_successful)
+                else:
+                    self.signals.message.emit(self.msg_error_maskCreation)
+            else:
+                self.signals.message.emit(self.msg_operation_successful)
+
+        except Exception as e:
+            self.signals.message.emit(
+                f'<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Operation encountered the following error:<br>{e}</hl>'
             )
-            raise error
+            raise e
 
-    def callback(self, string, progress=None, total_progress=None, clear=False):
-        """ """
-        if clear:
-            self.ui.txt003.clear()
-        self.ui.txt003.append(string)
+    def set_message(self, message):
+        self.ui.txt003.append(message)
 
-        if progress is not None:
-            self.ui.progressBar.setValue(progress)
-
-        if total_progress is not None:
-            self.ui.progressBar_total.setValue(total_progress)
-
-            QtWidgets.QApplication.processEvents()
+    def set_progress(self, progress):
+        self.ui.progress_bar.setValue(progress)
+        self.sb.app.processEvents()
 
 
 class MapCompositorUI:
@@ -518,9 +448,10 @@ class MapCompositorUI:
         sb.set_slot_class(ui, MapCompositorSlots)  # Set explicitly for pyinstaller.
         ui.set_attributes(WA_TranslucentBackground=True)
         # ui.set_flags(Tool=True, FramelessWindowHint=True, WindowStaysOnTopHint=True)
-        ui.set_style(theme="dark", style_class="translucentBgWithBorder")
+        ui.set_style(theme="dark", style_class="bgWithBorder")
+        from map_compositor import __version__
 
-        ui.txt003.hide()
+        ui.setWindowTitle(f"Map Compositor v{__version__}")
         ui.resize(ui.sizeHint())
 
         return ui
