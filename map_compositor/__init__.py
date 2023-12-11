@@ -2,4 +2,4 @@
 # coding=utf-8
 
 __package__ = "map_compositor"
-__version__ = "0.5.9"
+__version__ = "0.5.12"

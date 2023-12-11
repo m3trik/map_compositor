@@ -1,8 +1,6 @@
 import setuptools
-
 from map_compositor import __package__, __version__
 import pythontk as ptk
-
 
 long_description = ptk.get_file_contents("docs/README.md")
 description = ptk.get_text_between_delimiters(
@@ -11,11 +9,6 @@ description = ptk.get_text_between_delimiters(
     "<!-- short_description_end -->",
     as_string=True,
 )
-
-# Read requirements.txt and add to install_requires
-with open("requirements.txt") as f:
-    required_packages = f.read().splitlines()
-
 
 setuptools.setup(
     name=__package__,
@@ -34,7 +27,7 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(),
     include_package_data=True,
-    install_requires=required_packages,
+    install_requires=ptk.update_requirements(),
     data_files=ptk.get_dir_contents(
         "map_compositor", "filepath", exc_files=["*.py", "*.pyc", "*.json"]
     ),  # ie. ('uitk/ui/0', ['uitk/ui/0/init.ui']),
