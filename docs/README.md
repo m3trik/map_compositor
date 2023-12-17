@@ -1,5 +1,5 @@
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0.en.html)
-[![Version](https://img.shields.io/badge/Version-0.5.12-brightgreen.svg)](https://github.com/m3trik/map-compositor/releases/tag/v0.5.8)
+[![Version](https://img.shields.io/badge/Version-0.5.13-brightgreen.svg)](https://github.com/m3trik/map-compositor/releases/tag/v0.5.8)
 
 ### Map Compositor
 
