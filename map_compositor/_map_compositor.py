@@ -1,6 +1,7 @@
 # !/usr/bin/python
 # coding=utf-8
 import os
+from typing import Dict, List, Tuple
 from PySide2.QtCore import QObject, Signal
 from PIL import Image
 import pythontk as ptk
@@ -14,20 +15,27 @@ class MapCompositorSignals(QObject):
 
 
 class MapCompositor:
-    """ """
-
-    removeNormalMap = True
-    renameMixedAOMap = True
-    total_len = 0
-    total_progress = 0
-    masks = []
+    """Handles the composition of texture maps, including operations like compositing,
+    color replacement, and conversion between different normal map formats.
+    """
 
     def __init__(self):
+        # Initialize signals for UI communication.
         self.signals = MapCompositorSignals()
+        self.removeNormalMap: bool = True
+        self.renameMixedAOMap: bool = True
+        self.total_len: int = 0
+        self.total_progress: int = 0
+        self.masks: List[Image.Image] = []
 
-    def composite_images(self, sorted_images, output_dir, name=""):
+    def composite_images(
+        self,
+        sorted_images: Dict[str, List[Tuple[str, Image.Image]]],
+        output_dir: str,
+        name: str = "",
+    ) -> Dict[str, List[Tuple[str, Image.Image]]]:
         """ """
-        failed = {}
+        failed: Dict[str, List[Tuple[str, Image.Image]]] = {}
         for typ, images in sorted_images.items():
             filepath0 = images[0][0]
             first_image = images[0][1]
@@ -65,22 +73,18 @@ class MapCompositor:
                     self.masks = ptk.create_mask(images, map_background)
                     # debug: [self.save_image(i, name=output_dir+'/'+str(n)+'_mask.png') for n, i in enumerate(self.masks)]
 
-            length = len(remaining_images) if len(remaining_images) > 1 else 1
-
             self.signals.message.emit(
                 f"<u><br><b>{typ.rstrip('_')} {ptk.ImgUtils.map_modes[key]} {bit_depth}bit {ext.upper()}</b> {width}x{height}:</u>"
             )
 
             self.total_progress += 1
             self.signals.message.emit(ptk.format_path(filepath0, "file"))
-            # self.signals.progress.emit((1 / length) * 100)
             self.signals.progress.emit((self.total_progress / self.total_len) * 100)
 
             composited_image = first_image.convert("RGBA")
             for n, (file, im) in enumerate(remaining_images, 1):
                 self.total_progress += 1
                 self.signals.message.emit(ptk.format_path(file, "file"))
-                # self.signals.progress.emit((n / length) * 100)
                 self.signals.progress.emit((self.total_progress / self.total_len) * 100)
 
                 if mode == "I":
@@ -165,14 +169,14 @@ class MapCompositor:
 
                 try:
                     background = ptk.ImgUtils.map_backgrounds[key]
-                    im = ptk.ImgUtils.fill_masked_area(image, background, mask)
+                    im = ptk.fill_masked_area(image, background, mask)
                     mode = ptk.ImgUtils.map_modes[key]
                     im = im.convert(mode)
 
                 except KeyError:
                     # Get the averaged background color.
                     background = ptk.get_background(image, "RGBA", average=True)
-                    im = ptk.ImgUtils.fill_masked_area(image, background, mask)
+                    im = ptk.fill_masked_area(image, background, mask)
 
                 try:
                     failed_images[typ].append((filepath, im))
@@ -183,9 +187,9 @@ class MapCompositor:
 
 
 class MapCompositorSlots(MapCompositor):
-    msg_intro = """<u>Required Substance Painter Export Settings:</u><br>Padding: <b>Dilation + transparent</b> or <b>Dilation + default backgound color</b>.
+    msg_intro = """<u>Required Substance Painter Export Settings:</u><br>Output Template: <b>Document channels</b>.</u><br>Padding: <b>Dilation + transparent</b> or <b>Dilation + default backgound color</b>.
         <br><br><u>Works best with map filenames (case insensitive) ending in:</u>"""
-    msg_error_maskCreation = '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Unable to create masks from the source images.<br>To create a mask, at least one set of source maps need to a transparent or have a solid single color backround,<br>alternatively a set of mask maps can be added to the source folder. ex. &lt;map_name&gt;_mask.png</hl>'
+    msg_error_maskCreation = '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Unable to create masks from the source images.<br>To create a mask, at least one set of source maps need a transparent or single color backround,<br>alternatively a set of mask maps can be added to the source folder. ex. &lt;map_name&gt;_mask.png</hl>'
     msg_operation_successful = (
         '<br><hl style="color:rgb(0, 255, 255);"><b>COMPLETED.</b></hl>'
     )
