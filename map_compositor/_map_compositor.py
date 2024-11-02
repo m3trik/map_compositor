@@ -2,7 +2,7 @@
 # coding=utf-8
 import os
 from typing import Dict, List, Tuple
-from PySide2.QtCore import QObject, Signal
+from qtpy.QtCore import QObject, Signal
 from PIL import Image
 import pythontk as ptk
 from uitk.switchboard import Switchboard
