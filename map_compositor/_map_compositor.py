@@ -443,7 +443,7 @@ class MapCompositorUI:
     def __new__(cls, *args, **kwargs):
         sb = Switchboard(
             *args,
-            ui_location="./map_compositor.ui",
+            ui_source="./map_compositor.ui",
             **kwargs,
         )
         ui = sb.map_compositor
