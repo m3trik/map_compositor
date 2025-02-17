@@ -202,8 +202,8 @@ class MapCompositorSlots(MapCompositor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         """ """
-        self.sb = self.switchboard()
-        self.ui = self.sb.map_compositor
+        self.sb = kwargs.get("switchboard")
+        self.ui = self.sb.loaded_ui.map_compositor
 
         # load any saved info:
         prev_input_dirs = self.ui.settings.value("prev_input_dirs", [])
