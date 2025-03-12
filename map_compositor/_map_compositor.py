@@ -46,7 +46,7 @@ class MapCompositor:
             ext = ptk.format_path(filepath0, "ext")
 
             # Get key from type value in map_types dict. ie. 'Base_Color' from '_BC' value.
-            key = ptk.get_map_type_from_filename(typ)
+            key = ptk.resolve_map_type(typ)
             bit_depth = ptk.ImgUtils.bit_depth[ptk.ImgUtils.map_modes[key]]
 
             # Unable to create mode I 32bit. use rgb until a fix is found.
@@ -165,7 +165,7 @@ class MapCompositor:
                     )
                     continue
 
-                key = ptk.get_map_type_from_filename(typ)  #
+                key = ptk.resolve_map_type(typ)  #
 
                 try:
                     background = ptk.ImgUtils.map_backgrounds[key]
@@ -392,7 +392,7 @@ class MapCompositorSlots(MapCompositor):
                     (
                         i
                         for i in sorted_images.keys()  # Delete the standard normal map from the output.
-                        if ptk.get_map_type_from_filename(i) == "Normal"
+                        if ptk.resolve_map_type(i) == "Normal"
                     ),
                     False,
                 )
