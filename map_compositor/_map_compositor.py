@@ -280,7 +280,7 @@ class MapCompositorSlots(MapCompositor):
 
         if text:
             curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text):  # Add value to settings.
+            if text not in curItems and ptk.is_valid(text, "dir"):
                 cmb.add(curItems + [text], header="/", ascending=True)
                 self.ui.settings.setValue("prev_input_dirs", cmb.items)
 
@@ -296,7 +296,7 @@ class MapCompositorSlots(MapCompositor):
 
         if text:
             curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text):  # Add value to settings.
+            if text not in curItems and ptk.is_valid(text, "dir"):
                 cmb.add(curItems + [text], header="/", ascending=True)
                 self.ui.settings.setValue("prev_output_dirs", cmb.items)
 
@@ -365,8 +365,10 @@ class MapCompositorSlots(MapCompositor):
                 '<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> You must specify a source and destination directory.</hl>'
             )
             return
-        elif not ptk.is_valid(input_dir) or not ptk.is_valid(output_dir):
-            invalid_dir = input_dir if not ptk.is_valid(input_dir) else output_dir
+        elif not ptk.is_valid(input_dir, "dir") or not ptk.is_valid(output_dir, "dir"):
+            invalid_dir = (
+                input_dir if not ptk.is_valid(input_dir, "dir") else output_dir
+            )
             self.ui.txt003.append(
                 f'<br><hl style="color:rgb(255, 100, 100);"><b>Error:</b> Directory is invalid: <b>{invalid_dir}</b>.</hl>'
             )
