@@ -451,10 +451,10 @@ class MapCompositorUI:
         ui = sb.map_compositor
 
         # ui.settings.clear()
-        sb.set_slot_class(ui, MapCompositorSlots)  # Set explicitly for pyinstaller.
+        sb.set_slots_instance(ui, MapCompositorSlots)  # Set explicitly for pyinstaller.
         ui.set_attributes(WA_TranslucentBackground=True)
         # ui.set_flags(Tool=True, FramelessWindowHint=True, WindowStaysOnTopHint=True)
-        ui.set_style(theme="dark", style_class="bgWithBorder")
+        ui.style.set(theme="dark", style_class="bgWithBorder")
         from map_compositor import __version__
 
         ui.setWindowTitle(f"Map Compositor v{__version__}")
