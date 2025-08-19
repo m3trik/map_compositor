@@ -199,10 +199,10 @@ class MapCompositorSlots(MapCompositor):
         line = f"<br><b>{k}:</b>  {v}"
         msg_intro += line
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        """ """
-        self.sb = kwargs.get("switchboard")
+    def __init__(self, switchboard):
+        super().__init__()
+
+        self.sb = switchboard
         self.ui = self.sb.loaded_ui.map_compositor
 
         # load any saved info:
