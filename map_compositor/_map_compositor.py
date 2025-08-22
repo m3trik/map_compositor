@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple
 from qtpy.QtCore import QObject, Signal
 from PIL import Image
 import pythontk as ptk
-from uitk.switchboard import Switchboard
 
 
 class MapCompositorSignals(QObject):
@@ -443,6 +442,9 @@ class MapCompositorSlots(MapCompositor):
 
 class MapCompositorUI:
     def __new__(cls, *args, **kwargs):
+        from uitk import Switchboard
+        from map_compositor import __version__
+
         sb = Switchboard(
             *args,
             ui_source="./map_compositor.ui",
@@ -455,7 +457,6 @@ class MapCompositorUI:
         ui.set_attributes(WA_TranslucentBackground=True)
         # ui.set_flags(Tool=True, FramelessWindowHint=True, WindowStaysOnTopHint=True)
         ui.style.set(theme="dark", style_class="bgWithBorder")
-        from map_compositor import __version__
 
         ui.setWindowTitle(f"Map Compositor v{__version__}")
         ui.resize(ui.sizeHint())
