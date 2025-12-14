@@ -44,6 +44,9 @@
 *.gz
 *.in
 
+# Generated UI python modules
+*_ui.py
+
 **/setup.py
 
 /build
