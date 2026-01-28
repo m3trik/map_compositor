@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <ui version="4.0">
  <class>QtUi</class>
  <widget class="QMainWindow" name="QtUi">
@@ -71,7 +71,7 @@
          </size>
         </property>
         <property name="title">
-         <string/>
+         <string />
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <property name="leftMargin">
@@ -172,7 +172,7 @@
               <string>Set the directory where your combined maps will be output.</string>
              </property>
              <property name="text">
-              <string/>
+              <string />
              </property>
              <property name="placeholderText">
               <string>&lt;Destination Directory&gt;</string>
@@ -216,6 +216,12 @@
                <string>/</string>
               </property>
              </item>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
             </widget>
            </item>
            <item row="4" column="4">
@@ -379,6 +385,12 @@
                <string>/</string>
               </property>
              </item>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
             </widget>
            </item>
            <item row="6" column="0">
@@ -418,6 +430,12 @@
                <string>/</string>
               </property>
              </item>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
             </widget>
            </item>
            <item row="7" column="0" colspan="5">
@@ -487,11 +505,11 @@
   <customwidget>
    <class>ComboBox</class>
    <extends>QComboBox</extends>
-   <header>uitk.widgets.comboBox.ComboBox.h</header>
+   <header>uitk.widgets.comboBox</header>
   </customwidget>
  </customwidgets>
- <resources/>
- <connections/>
+ <resources />
+ <connections />
  <designerdata>
   <property name="gridDeltaX">
    <number>5</number>
