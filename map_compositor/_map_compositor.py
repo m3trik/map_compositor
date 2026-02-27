@@ -204,19 +204,6 @@ class MapCompositorSlots(MapCompositor):
         self.sb = switchboard
         self.ui = self.sb.loaded_ui.map_compositor
 
-        # load any saved info:
-        prev_input_dirs = self.ui.settings.value("prev_input_dirs", [])
-        prev_input_dirs = [i for i in prev_input_dirs if not i == "/"]
-        self.ui.cmb000.add(prev_input_dirs[-10:], header="/")
-
-        prev_output_dirs = self.ui.settings.value("prev_output_dirs", [])
-        prev_output_dirs = [i for i in prev_output_dirs if not i == "/"]
-        self.ui.cmb001.add(prev_output_dirs[-10:], header="/", ascending=True)
-
-        prev_map_names = self.ui.settings.value("prev_map_names", [])
-        prev_map_names = [i for i in prev_map_names if not i == "/"]
-        self.ui.cmb002.add(prev_map_names[-10:], header="/", ascending=True)
-
         self.default_toolTip_txt000 = self.ui.txt000.toolTip()
         self.default_toolTip_txt001 = self.ui.txt001.toolTip()
 
@@ -258,62 +245,83 @@ class MapCompositorSlots(MapCompositor):
         """
         return self.ui.txt002.text()
 
-    def cmb000(self, index, widget):
-        """Previous Source Directories"""
-        text = widget.itemText(index)
-        self.ui.txt000.setText(text)
+    def txt000_init(self, widget):
+        """Init Source Directory"""
+        from uitk.widgets.optionBox.options.recent_values import RecentValuesOption
 
-    def cmb001(self, index, widget):
-        """Previous Destination Directories"""
-        text = widget.itemText(index)
-        self.ui.txt001.setText(text)
+        self._recent_input_dirs = RecentValuesOption(
+            wrapped_widget=widget,
+            settings_key="map_compositor_input_dirs",
+            max_recent=10,
+        )
+        widget.option_box.add_option(self._recent_input_dirs)
 
-    def cmb002(self, index, widget):
-        """Previous Map Names"""
-        text = widget.itemText(index)
-        self.ui.txt002.setText(text)
+        # Seed from legacy QSettings if the plugin's store is empty
+        if not self._recent_input_dirs.recent_values:
+            for d in self.ui.settings.value("prev_input_dirs", []):
+                if d != "/":
+                    self._recent_input_dirs.add_recent_value(d)
+
+    def txt001_init(self, widget):
+        """Init Destination Directory"""
+        from uitk.widgets.optionBox.options.recent_values import RecentValuesOption
+
+        self._recent_output_dirs = RecentValuesOption(
+            wrapped_widget=widget,
+            settings_key="map_compositor_output_dirs",
+            max_recent=10,
+        )
+        widget.option_box.add_option(self._recent_output_dirs)
+
+        # Seed from legacy QSettings if the plugin's store is empty
+        if not self._recent_output_dirs.recent_values:
+            for d in self.ui.settings.value("prev_output_dirs", []):
+                if d != "/":
+                    self._recent_output_dirs.add_recent_value(d)
+
+    def txt002_init(self, widget):
+        """Init Map Name"""
+        from uitk.widgets.optionBox.options.recent_values import RecentValuesOption
+
+        self._recent_map_names = RecentValuesOption(
+            wrapped_widget=widget,
+            settings_key="map_compositor_map_names",
+            max_recent=10,
+        )
+        widget.option_box.add_option(self._recent_map_names)
+
+        # Seed from legacy QSettings if the plugin's store is empty
+        if not self._recent_map_names.recent_values:
+            for n in self.ui.settings.value("prev_map_names", []):
+                if n != "/":
+                    self._recent_map_names.add_recent_value(n)
 
     def txt000(self, text, widget):
         """Source Directory"""
-        cmb = self.ui.cmb000
-
         if text:
-            curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text, "dir"):
-                cmb.add(curItems + [text], header="/", ascending=True)
-                self.ui.settings.setValue("prev_input_dirs", cmb.items)
-
+            if ptk.is_valid(text, "dir") and hasattr(self, "_recent_input_dirs"):
+                self._recent_input_dirs.record(text)
             self.ui.b003.setDisabled(False)
             widget.setToolTip(text)
         else:
             self.ui.b003.setDisabled(True)
-            widget.setToolTip(self.orig_toolTip_txt000)
+            widget.setToolTip(self.default_toolTip_txt000)
 
     def txt001(self, text, widget):
         """Destination Directory"""
-        cmb = self.ui.cmb001
-
         if text:
-            curItems = cmb.items[1:]
-            if text not in curItems and ptk.is_valid(text, "dir"):
-                cmb.add(curItems + [text], header="/", ascending=True)
-                self.ui.settings.setValue("prev_output_dirs", cmb.items)
-
+            if ptk.is_valid(text, "dir") and hasattr(self, "_recent_output_dirs"):
+                self._recent_output_dirs.record(text)
             self.ui.b004.setDisabled(False)
             widget.setToolTip(text)
         else:
             self.ui.b004.setDisabled(True)
-            widget.setToolTip(self.orig_toolTip_txt001)
+            widget.setToolTip(self.default_toolTip_txt001)
 
     def txt002(self, text, widget):
         """Map Name"""
-        cmb = self.ui.cmb002
-
-        if text:
-            curItems = cmb.items[1:]
-            if text not in cmb.items:  # add value to settings.
-                cmb.add(curItems + [text], header="/", ascending=True)
-                self.ui.settings.setValue("prev_map_names", cmb.items)
+        if text and hasattr(self, "_recent_map_names"):
+            self._recent_map_names.record(text)
 
     def b000(self):
         """Select Input Directory"""
