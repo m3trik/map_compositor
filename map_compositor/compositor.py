@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Tuple
 
+import numpy as np
 from PIL import Image
 import pythontk as ptk
 
@@ -73,6 +74,15 @@ class MapCompositor(ptk.LoggingMixin):
         self.total_len: int = 0
         self.total_progress: int = 0
         self.masks: List[Image.Image] = []
+        # Snapshot of the batch's full map-type inventory. The retry
+        # pass only sees the failed subset, but normal-format decisions
+        # (e.g. "skip auto-invert because Normal_OpenGL is already on
+        # disk") must reason about the original source set.
+        self._batch_map_types: set = set()
+        # Drops the noisy "map_compositor.compositor.MapCompositor:" prefix
+        # from every record without sacrificing the level tag (which still
+        # carries colour information).
+        self.logger.hide_logger_name()
 
     # Back-compat alias for the original camelCase attribute name.
     @property
@@ -92,6 +102,7 @@ class MapCompositor(ptk.LoggingMixin):
         self.masks = []
         self.total_progress = 0
         self.total_len = 0
+        self._batch_map_types = set()
 
     def process_batch(
         self,
@@ -102,9 +113,14 @@ class MapCompositor(ptk.LoggingMixin):
         """Drive a full composite → retry-with-mask → re-composite cycle."""
         self.reset()
         self.total_len = sum(len(layers) for layers in sorted_images.values())
+        self._batch_map_types = set(sorted_images.keys())
         failed = self.composite_images(sorted_images, output_dir, name)
         if not failed:
             return BatchResult.SUCCESS
+        # Blank line above the phase marker so it visually separates the
+        # first composite pass from the mask-retry pass — matches the
+        # leading-newline convention log_group already uses.
+        self.logger.log_raw("")
         self.logger.info(
             "Processing additional maps that require a mask ..", preset="italic"
         )
@@ -165,6 +181,63 @@ class MapCompositor(ptk.LoggingMixin):
                 out.setdefault(typ, []).append((filepath, im))
         return out
 
+    def _seed_masks(
+        self,
+        sorted_images: SortedImages,
+        fallback_typ: str,
+        fallback_layers: Layers,
+        fallback_bg: Tuple[int, int, int, int],
+    ) -> List[Image.Image]:
+        """Build per-layer masks from every map type in the batch whose
+        layers carry an alpha channel over a transparent background.
+
+        Per-layer alpha masks are OR-combined across sources so an
+        antialiased / noisy boundary in one source is filled in by the
+        others — far more robust than the legacy single-source,
+        exact-color-match approach.
+
+        Falls back to :func:`ptk.create_mask` against ``fallback_typ`` if
+        no alpha-capable source qualifies.
+        """
+        n_layers = len(fallback_layers)
+        sources: List[Tuple[str, Layers]] = []
+        for typ, layers in sorted_images.items():
+            if len(layers) != n_layers:
+                continue
+            first_image = layers[0][1]
+            if "A" not in first_image.getbands():
+                continue
+            bg = ptk.get_background(first_image, "RGBA")
+            if not bg or bg[3] != 0:
+                continue
+            sources.append((typ, layers))
+
+        if not sources:
+            self.logger.info(
+                f"Attempting to create masks using source <b>{fallback_typ}</b> ..",
+                preset="italic",
+            )
+            return ptk.create_mask(
+                [img for _, img in fallback_layers], fallback_bg
+            )
+
+        self.logger.info(
+            f"Creating masks from <b>{len(sources)}</b> alpha source(s): "
+            f"{', '.join(typ for typ, _ in sources)}",
+            preset="italic",
+        )
+
+        masks: List[Image.Image] = []
+        for i in range(n_layers):
+            combined: Optional[np.ndarray] = None
+            for _, layers in sources:
+                im = layers[i][1].convert("RGBA")
+                content = np.array(im)[:, :, 3] > 0
+                combined = content if combined is None else (combined | content)
+            mask_arr = combined.astype(np.uint8) * 255
+            masks.append(Image.fromarray(mask_arr, mode="L"))
+        return masks
+
     def _composite_type(
         self,
         typ: str,
@@ -193,16 +266,14 @@ class MapCompositor(ptk.LoggingMixin):
             return False  # non-uniform / mismatched bg → mask retry path
 
         if not self.masks and bg[3] == 0:
-            self.logger.info(
-                f"Attempting to create masks using source <b>{typ}</b> ..",
-                preset="italic",
-            )
-            self.masks = ptk.create_mask([img for _, img in layers], bg)
+            self.masks = self._seed_masks(sorted_images, typ, layers, bg)
 
-        self.logger.info(
+        title = (
             f"{typ.rstrip('_')} {ptk.ImgUtils.map_modes[key]} {bit_depth}bit "
-            f"{ext.upper()} {width}x{height}:",
-            preset="header",
+            f"{ext.upper()} {width}x{height}:"
+        )
+        self.logger.log_group(
+            title, [ptk.format_path(fp, "file") for fp, _ in layers]
         )
 
         composited = self._alpha_composite_layers(
@@ -222,7 +293,10 @@ class MapCompositor(ptk.LoggingMixin):
         self._maybe_optimize(out_path, key)
 
         info = _MapInfo(mode=mode, bit_depth=bit_depth, ext=ext, width=width, height=height)
-        self._maybe_convert_normal(result, typ, sorted_images, output_dir, name, info)
+        self._maybe_convert_normal(
+            result, typ, sorted_images, output_dir, name, info,
+            source=first_image, source_path=filepath0,
+        )
         return True
 
     def _maybe_optimize(self, out_path: str, map_type: str) -> None:
@@ -269,8 +343,12 @@ class MapCompositor(ptk.LoggingMixin):
         return composited
 
     def _tick(self, filepath: str) -> None:
+        """Advance the global progress counter.
+
+        File-name logging is handled up-front by ``log_group`` so the whole
+        category renders as one block; ticking here is progress-only.
+        """
         self.total_progress += 1
-        self.logger.info(ptk.format_path(filepath, "file"))
         if self.total_len:
             self._progress_cb((self.total_progress / self.total_len) * 100)
 
@@ -282,6 +360,8 @@ class MapCompositor(ptk.LoggingMixin):
         output_dir: str,
         name: str,
         info: _MapInfo,
+        source: Optional[Image.Image] = None,
+        source_path: Optional[str] = None,
     ) -> None:
         """Generate / suppress the complementary normal map according to
         ``normal_output_mode``:
@@ -302,19 +382,39 @@ class MapCompositor(ptk.LoggingMixin):
         if not (in_dx or in_gl):
             return  # not a normal map at all
 
+        # Probe the on-disk source. The in-memory ``source`` may have been
+        # rewritten by the retry pass (mask + map_backgrounds fill), which
+        # seeds a faint gradient at the mask boundary and pushes
+        # borderline integrability correlations across the detector
+        # threshold — producing a false-positive format-mismatch warning.
+        probe = None
+        if source_path:
+            try:
+                probe = ptk.ImgUtils.load_image(source_path)
+            except Exception:
+                probe = None
+        if probe is None:
+            probe = source if source is not None else result
+
+        # Decide complement existence against the batch-wide inventory,
+        # not just ``sorted_images``. The retry pass only carries the
+        # failed subset; without the batch snapshot the BOTH branch would
+        # re-invert and clobber a user-provided complement on retry.
+        inventory = self._batch_map_types or set(sorted_images.keys())
+
         if mode is NormalOutputMode.BOTH:
-            if ptk.MapFactory.contains_map_types(sorted_images, "Normal_OpenGL"):
+            if "Normal_OpenGL" in inventory:
                 return
             if self._try_invert_normal(
                 result, typ, "Normal_DirectX", "Normal_OpenGL", output_dir, name, info
             ):
-                self._warn_if_normal_format_mismatch(result, declared="DirectX")
+                self._warn_if_normal_format_mismatch(probe, declared="DirectX")
                 return
-            if not ptk.MapFactory.contains_map_types(sorted_images, "Normal_DirectX"):
+            if "Normal_DirectX" not in inventory:
                 if self._try_invert_normal(
                     result, typ, "Normal_OpenGL", "Normal_DirectX", output_dir, name, info
                 ):
-                    self._warn_if_normal_format_mismatch(result, declared="OpenGL")
+                    self._warn_if_normal_format_mismatch(probe, declared="OpenGL")
             return
 
         if mode is NormalOutputMode.OPENGL_ONLY:
@@ -341,7 +441,7 @@ class MapCompositor(ptk.LoggingMixin):
         if self._try_invert_normal(
             result, typ, src_set, dst_set, output_dir, name, info
         ):
-            self._warn_if_normal_format_mismatch(result, declared=declared)
+            self._warn_if_normal_format_mismatch(probe, declared=declared)
             try:
                 os.remove(os.path.join(output_dir, f"{name}_{typ}.{info.ext}"))
             except OSError:
@@ -384,10 +484,9 @@ class MapCompositor(ptk.LoggingMixin):
         new_type = ptk.ImgUtils.map_types[dst_set][index]
         inverted = ptk.invert_channels(result, "g")
         inverted.save(os.path.join(output_dir, f"{name}_{new_type}.{info.ext}"))
-        self.logger.info(
+        title = (
             f"{new_type.rstrip('_')} {info.mode} {info.bit_depth}bit "
-            f"{info.ext.upper()} {info.width}x{info.height}:",
-            preset="header",
+            f"{info.ext.upper()} {info.width}x{info.height}:"
         )
-        self.logger.info(f"Created using {name}_{typ}.{info.ext}")
+        self.logger.log_group(title, [f"Created using {name}_{typ}.{info.ext}"])
         return True

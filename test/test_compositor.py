@@ -255,6 +255,120 @@ class TestRetryFailed(unittest.TestCase, _LoggerCaptureMixin):
         self.assertIn("ERROR", cap.levels())
 
 
+class TestSeedMasks(unittest.TestCase, _LoggerCaptureMixin):
+    """`_seed_masks` should combine alpha across every eligible map type
+    so an antialiased / eroded boundary in one source is recovered from
+    another."""
+
+    def _rgba_with_alpha_pixels(self, size, alpha_pixels):
+        """size=(w,h); alpha_pixels: iterable of (x,y) to set to alpha=255."""
+        im = Image.new("RGBA", size, (200, 200, 200, 0))
+        for x, y in alpha_pixels:
+            im.putpixel((x, y), (200, 200, 200, 255))
+        return im
+
+    def test_or_combines_alpha_across_sources(self):
+        # Source A covers (3,3) and (4,4); source B covers (3,4) and (4,3).
+        # Together they describe a 2x2 content block; alone each is incomplete.
+        size = (8, 8)
+        a = self._rgba_with_alpha_pixels(size, [(3, 3), (4, 4)])
+        b = self._rgba_with_alpha_pixels(size, [(3, 4), (4, 3)])
+        sorted_images = {
+            "Base_Color": [("a.png", a)],
+            "Roughness": [("b.png", b)],
+        }
+
+        engine = MapCompositor()
+        masks = engine._seed_masks(
+            sorted_images,
+            fallback_typ="Base_Color",
+            fallback_layers=sorted_images["Base_Color"],
+            fallback_bg=(200, 200, 200, 0),
+        )
+        self.assertEqual(len(masks), 1)
+        mask = masks[0]
+        self.assertEqual(mask.mode, "L")
+        for px in [(3, 3), (3, 4), (4, 3), (4, 4)]:
+            self.assertEqual(mask.getpixel(px), 255, f"content lost at {px}")
+        # A corner pixel that was alpha=0 in BOTH sources must remain bg.
+        self.assertEqual(mask.getpixel((0, 0)), 0)
+
+    def test_falls_back_to_create_mask_when_no_alpha_source(self):
+        # RGB-only sources (no alpha band) — must hit the legacy path.
+        a = Image.new("RGB", (4, 4), (10, 20, 30))
+        a.putpixel((1, 1), (200, 200, 200))
+        sorted_images = {"Base_Color": [("a.png", a)]}
+
+        engine = MapCompositor()
+        cap = self.attach_capture(engine)
+        masks = engine._seed_masks(
+            sorted_images,
+            fallback_typ="Base_Color",
+            fallback_layers=sorted_images["Base_Color"],
+            fallback_bg=(10, 20, 30, 255),
+        )
+        self.assertEqual(len(masks), 1)
+        self.assertEqual(masks[0].mode, "L")
+        self.assertTrue(
+            any("Attempting to create masks" in m for m in cap.messages()),
+            "expected fallback log line",
+        )
+
+    def test_skips_sources_with_mismatched_layer_count(self):
+        # 2 layers in the triggering type, 1 in a mismatched alpha source —
+        # the mismatched source must be ignored so positional alignment holds.
+        # Content kept off the corners so get_background() still detects a
+        # uniform alpha=0 bg.
+        size = (6, 6)
+        triggering = [
+            ("a0.png", self._rgba_with_alpha_pixels(size, [(1, 1)])),
+            ("a1.png", self._rgba_with_alpha_pixels(size, [(2, 2)])),
+        ]
+        mismatched = [
+            ("b0.png", self._rgba_with_alpha_pixels(size, [(3, 3), (4, 4)])),
+        ]
+        sorted_images = {"Base_Color": triggering, "Roughness": mismatched}
+
+        engine = MapCompositor()
+        masks = engine._seed_masks(
+            sorted_images,
+            fallback_typ="Base_Color",
+            fallback_layers=triggering,
+            fallback_bg=(200, 200, 200, 0),
+        )
+        self.assertEqual(len(masks), 2)
+        # Layer-0 mask carries only the (1,1) content — the mismatched
+        # source's (3,3)/(4,4) pixels must not bleed in.
+        self.assertEqual(masks[0].getpixel((1, 1)), 255)
+        self.assertEqual(masks[0].getpixel((3, 3)), 0)
+        self.assertEqual(masks[0].getpixel((4, 4)), 0)
+
+    def test_skips_alpha_source_with_opaque_background(self):
+        # Source has alpha band but bg alpha is 255 → not the transparent-bg
+        # path the seeder is meant for; must be skipped.
+        size = (4, 4)
+        opaque_bg = Image.new("RGBA", size, (50, 50, 50, 255))
+        opaque_bg.putpixel((1, 1), (200, 200, 200, 255))
+
+        transparent_bg = self._rgba_with_alpha_pixels(size, [(2, 2)])
+
+        sorted_images = {
+            "Roughness": [("opaque.png", opaque_bg)],
+            "Base_Color": [("trans.png", transparent_bg)],
+        }
+
+        engine = MapCompositor()
+        masks = engine._seed_masks(
+            sorted_images,
+            fallback_typ="Base_Color",
+            fallback_layers=sorted_images["Base_Color"],
+            fallback_bg=(200, 200, 200, 0),
+        )
+        # Only the transparent-bg source counts → content at (2,2) only.
+        self.assertEqual(masks[0].getpixel((2, 2)), 255)
+        self.assertEqual(masks[0].getpixel((1, 1)), 0)
+
+
 class TestMapInfoBundle(unittest.TestCase):
     def test_mapinfo_is_frozen(self):
         from map_compositor.compositor import _MapInfo
@@ -683,6 +797,161 @@ class TestPublicApi(unittest.TestCase):
             self.assertTrue(
                 hasattr(mc, name), f"map_compositor.{name} must be importable"
             )
+
+
+class TestRetryPassRespectsExistingComplement(
+    unittest.TestCase, _LoggerCaptureMixin
+):
+    """When the source folder already contains both Normal_DirectX and
+    Normal_OpenGL, the engine must not auto-invert — even if Normal_DirectX
+    fails the first composite pass and is processed through the retry path.
+    Previously the retry pass only saw the failed subset and would clobber
+    the user-provided OpenGL output with an inverted copy of the DX file.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="mc_retry_complement_")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_retry_does_not_overwrite_existing_opengl(self):
+        # Generic Normal pair — content in the center, alpha=0 at all
+        # four corners so get_background() agrees on a uniform bg and
+        # the first pass succeeds, populating the mask the DX retry needs.
+        def _alpha_with_center_content(size, content_color):
+            im = Image.new("RGBA", size, (0, 0, 0, 0))
+            for x in range(size[0] // 2 - 1, size[0] // 2 + 1):
+                for y in range(size[1] // 2 - 1, size[1] // 2 + 1):
+                    im.putpixel((x, y), content_color)
+            return im
+
+        n_a = _alpha_with_center_content((16, 16), (200, 100, 50, 255))
+        n_b = _alpha_with_center_content((16, 16), (50, 100, 200, 255))
+        n_a_path = os.path.join(self.tmp, "a_Normal.png")
+        n_b_path = os.path.join(self.tmp, "b_Normal.png")
+        n_a.save(n_a_path); n_b.save(n_b_path)
+
+        # Two DX layers with mismatched solid backgrounds → forces the
+        # first pass to defer to the mask-retry path.
+        dx_a = _solid_rgba((16, 16), (127, 127, 255, 255))
+        dx_b = _solid_rgba((16, 16), (0, 0, 0, 255))
+        dx_a_path = os.path.join(self.tmp, "a_Normal_DirectX.png")
+        dx_b_path = os.path.join(self.tmp, "b_Normal_DirectX.png")
+        dx_a.save(dx_a_path); dx_b.save(dx_b_path)
+
+        # Distinct user-provided OpenGL — pure green so any inversion-
+        # clobber from the DX retry path would be detectable.
+        gl = _solid_rgba((16, 16), (0, 255, 0, 255))
+        gl_path = os.path.join(self.tmp, "a_Normal_OpenGL.png")
+        gl.save(gl_path)
+
+        engine = MapCompositor()
+        engine.process_batch(
+            {
+                "Normal": [
+                    (n_a_path, _load(n_a_path)),
+                    (n_b_path, _load(n_b_path)),
+                ],
+                "Normal_DirectX": [
+                    (dx_a_path, _load(dx_a_path)),
+                    (dx_b_path, _load(dx_b_path)),
+                ],
+                "Normal_OpenGL": [(gl_path, _load(gl_path))],
+            },
+            self.tmp,
+            name="batch",
+        )
+
+        gl_out_path = os.path.join(self.tmp, "batch_Normal_OpenGL.png")
+        self.assertTrue(os.path.exists(gl_out_path))
+        result = _load(gl_out_path).convert("RGBA")
+        # The user's pure-green OpenGL must survive — not be replaced by
+        # an inversion of the (127,127,255) DX neutral.
+        self.assertEqual(result.getpixel((0, 0)), (0, 255, 0, 255))
+
+
+class TestFormatProbeUsesOnDiskSource(unittest.TestCase, _LoggerCaptureMixin):
+    """The integrability check must run against the on-disk source, not
+    the engine's in-memory copy. The retry pass overwrites the un-baked
+    area with the map type's default background (127,127,255), seeding a
+    faint gradient at the mask boundary; that synthetic gradient is enough
+    to push borderline correlations across the detector threshold and
+    fire a false-positive ``declared X but pixel analysis suggests Y``
+    warning.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="mc_probe_src_")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_detect_receives_unmodified_on_disk_image(self):
+        import numpy as np
+        import pythontk as ptk
+
+        # Generic Normal layers — content in the center, alpha=0 at all
+        # four corners so get_background() agrees on a uniform bg and
+        # the first pass succeeds, populating the mask the DX retry needs.
+        def _alpha_with_center_content(size, content_color):
+            im = Image.new("RGBA", size, (0, 0, 0, 0))
+            for x in range(size[0] // 2 - 1, size[0] // 2 + 1):
+                for y in range(size[1] // 2 - 1, size[1] // 2 + 1):
+                    im.putpixel((x, y), content_color)
+            return im
+
+        n_a = _alpha_with_center_content((16, 16), (200, 100, 50, 255))
+        n_b = _alpha_with_center_content((16, 16), (50, 100, 200, 255))
+        n_a_path = os.path.join(self.tmp, "a_Normal.png")
+        n_b_path = os.path.join(self.tmp, "b_Normal.png")
+        n_a.save(n_a_path); n_b.save(n_b_path)
+
+        # Two DX layers with different solid bgs to force retry.
+        # Crucially the bg colors differ from the map type's default
+        # (127,127,255), so the retry-path fill actually rewrites the
+        # source image and the difference between probe and on-disk
+        # becomes detectable.
+        dx_a = _solid_rgba((16, 16), (50, 50, 200, 255))
+        dx_b = _solid_rgba((16, 16), (0, 0, 0, 255))
+        dx_a_path = os.path.join(self.tmp, "a_Normal_DirectX.png")
+        dx_b_path = os.path.join(self.tmp, "b_Normal_DirectX.png")
+        dx_a.save(dx_a_path); dx_b.save(dx_b_path)
+
+        seen: list = []
+        original = ptk.MapFactory.detect_normal_map_format
+
+        def spy(image, threshold=0.25, min_gradient_std=1.0):
+            seen.append(image.copy() if hasattr(image, "copy") else image)
+            return None  # Never trip the warning — we only inspect the input.
+
+        ptk.MapFactory.detect_normal_map_format = staticmethod(spy)
+        try:
+            engine = MapCompositor()
+            engine.process_batch(
+                {
+                    "Normal": [
+                        (n_a_path, _load(n_a_path)),
+                        (n_b_path, _load(n_b_path)),
+                    ],
+                    "Normal_DirectX": [
+                        (dx_a_path, _load(dx_a_path)),
+                        (dx_b_path, _load(dx_b_path)),
+                    ],
+                },
+                self.tmp,
+                name="batch",
+            )
+        finally:
+            ptk.MapFactory.detect_normal_map_format = original
+
+        self.assertTrue(seen, "detect_normal_map_format was not invoked")
+        probe = seen[0]
+        on_disk = _load(dx_a_path).convert("RGB")
+        self.assertTrue(
+            np.array_equal(np.array(probe.convert("RGB")), np.array(on_disk)),
+            "probe image must match the on-disk source byte-for-byte",
+        )
 
 
 if __name__ == "__main__":

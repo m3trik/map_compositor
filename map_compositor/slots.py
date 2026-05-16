@@ -12,22 +12,36 @@ from typing import Optional
 
 import pythontk as ptk
 from pythontk.core_utils.logging_mixin import DefaultTextLogHandler
+from qtpy.QtWidgets import QPushButton
 
 from map_compositor.compositor import BatchResult, MapCompositor, NormalOutputMode
 
 
+_DOCS_URL = "https://github.com/m3trik/map_compositor#readme"
+
+
 def _build_intro() -> str:
-    """One-time intro string listing the supported map-type suffixes."""
-    intro = (
-        "<u>Required Substance Painter Export Settings:</u><br>"
-        "Output Template: <b>Document channels</b>.<br>"
-        "Padding: <b>Dilation + transparent</b> or "
-        "<b>Dilation + default background color</b>."
-        "<br><br><u>Works best with map filenames (case insensitive) ending in:</u>"
+    """One-time intro panel: minimal quickstart + link to full docs.
+
+    The full filename-suffix table used to live here but dwarfed the
+    actual instructions — readers had to scroll past ~30 rows of alias
+    lists to find the basic export settings. Moved to the GitHub README;
+    this panel now stays a single screen.
+    """
+    return (
+        "<u>Quickstart</u><br>"
+        "&nbsp;&nbsp;1. Set the <b>source</b> and <b>destination</b> directories.<br>"
+        "&nbsp;&nbsp;2. (Optional) Set a <b>map name</b> prefix.<br>"
+        "&nbsp;&nbsp;3. Click <b>Combine Maps</b>.<br><br>"
+        "<u>Required Substance Painter Export Settings</u><br>"
+        "&nbsp;&nbsp;Output Template: <b>Document channels</b><br>"
+        "&nbsp;&nbsp;Padding: <b>Dilation + transparent</b> or "
+        "<b>Dilation + default background color</b><br><br>"
+        f'<span style="color:#888888">'
+        f'Full filename-suffix table and detailed docs: '
+        f'<a href="{_DOCS_URL}" style="color:#88AACC">{_DOCS_URL}</a>'
+        "</span>"
     )
-    for k, v in ptk.ImgUtils.map_types.items():
-        intro += f"<br><b>{k}:</b>  {v}"
-    return intro
 
 
 class MapCompositorSlots:
@@ -62,10 +76,16 @@ class MapCompositorSlots:
         self.ui.txt003.setText(self.msg_intro)
         self.ui.footer.setDefaultStatusText("Ready.")
 
-        if not self.ui.txt000.text():
-            self.ui.b003.setDisabled(True)
-        if not self.ui.txt001.text():
-            self.ui.b004.setDisabled(True)
+        # The primary action ("Combine Maps") lives in the footer with a
+        # styled background so it stands out from the status text. Connect
+        # to the existing slot method directly — Switchboard won't auto-wire
+        # it because the button isn't part of the .ui tree.
+        self.combine_btn = QPushButton("Combine Maps")
+        self.combine_btn.setToolTip("Start the compositing process.")
+        self.combine_btn.clicked.connect(self.b002)
+        self.ui.footer.add_widget(
+            self.combine_btn, side="right", background=True, rounded=False
+        )
 
     # --- engine pass-through (back-compat with previous public API) ---
     @property
@@ -90,7 +110,14 @@ class MapCompositorSlots:
         return self.ui.txt002.text()
 
     # --- shared helpers ---
-    def _bind_recent_values(self, widget, settings_key: str, legacy_key: str):
+    def _bind_recent_values(
+        self,
+        widget,
+        settings_key: str,
+        legacy_key: str,
+        *,
+        auto_record: bool = False,
+    ):
         """Attach a RecentValuesOption and seed it from legacy QSettings."""
         from uitk.widgets.optionBox.options.recent_values import RecentValuesOption
 
@@ -98,6 +125,7 @@ class MapCompositorSlots:
             wrapped_widget=widget,
             settings_key=settings_key,
             max_recent=10,
+            auto_record=auto_record,
         )
         widget.option_box.add_option(opt)
         if not opt.recent_values:
@@ -106,6 +134,33 @@ class MapCompositorSlots:
                     opt.add_recent_value(v)
         return opt
 
+    def _bind_dir_actions(self, widget, browse_title: str):
+        """Attach Set (browse-directory) and Open (reveal-in-explorer) buttons.
+
+        Returns the Open ActionOption so the caller can toggle its enabled
+        state from the text-change handler.
+        """
+        from uitk.widgets.optionBox.options.action import ActionOption
+        from uitk.widgets.optionBox.options.browse import BrowseOption
+
+        open_opt = ActionOption(
+            wrapped_widget=widget,
+            callback=lambda: self._open_dir(widget.text()),
+            icon="open_external",
+            tooltip="Open this directory in the file explorer.",
+        )
+        widget.option_box.add_option(open_opt)
+
+        browse_opt = BrowseOption(
+            wrapped_widget=widget,
+            mode="directory",
+            title=browse_title,
+            tooltip="Browse for a directory.",
+        )
+        widget.option_box.add_option(browse_opt)
+
+        return open_opt
+
     @staticmethod
     def _open_dir(path: Optional[str]) -> None:
         try:
@@ -113,20 +168,20 @@ class MapCompositorSlots:
         except (FileNotFoundError, TypeError):
             pass
 
-    def _apply_dir_text(self, text, widget, open_btn, default_tooltip, recent):
-        if text:
-            if ptk.is_valid(text, "dir") and recent is not None:
-                recent.record(text)
-            open_btn.setDisabled(False)
-            widget.setToolTip(text)
-        else:
-            open_btn.setDisabled(True)
-            widget.setToolTip(default_tooltip)
+    def _on_dir_validated(self, ok: bool, text: str, open_opt):
+        """Toggle the Open button in response to validated dir text."""
+        open_opt.widget.setEnabled(bool(text and ok))
 
     def _on_progress(self, percent: float) -> None:
-        """Engine→UI progress bar bridge (routes through the footer)."""
-        self.ui.footer.progress_bar.setValue(int(percent))
-        self.sb.app.processEvents()
+        """Engine→UI progress bar bridge (routes through the footer).
+
+        Goes through ``Footer.update_progress`` rather than poking
+        ``progress_bar.setValue`` directly — the bar is created with
+        ``auto_hide=True`` and only becomes visible after the matching
+        ``start_progress`` call in ``process()``. ``ProgressBar.update_progress``
+        already pumps the event loop, so no extra ``processEvents`` here.
+        """
+        self.ui.footer.update_progress(int(percent))
 
     # --- widget init handlers ---
     def header_init(self, widget):
@@ -167,56 +222,53 @@ class MapCompositorSlots:
     def txt000_init(self, widget):
         """Init Source Directory"""
         self._recent_input_dirs = self._bind_recent_values(
-            widget, "map_compositor_input_dirs", "prev_input_dirs"
+            widget,
+            "map_compositor_input_dirs",
+            "prev_input_dirs",
+            auto_record=True,
+        )
+        self._open_input_dir = self._bind_dir_actions(
+            widget, browse_title="Select a directory containing image files."
+        )
+        widget.set_validator(
+            "dir",
+            invalid_tooltip="Invalid directory",
+            empty_tooltip=self.default_toolTip_txt000,
+        )
+        widget.validated.connect(
+            lambda ok, text: self._on_dir_validated(ok, text, self._open_input_dir)
         )
 
     def txt001_init(self, widget):
         """Init Destination Directory"""
         self._recent_output_dirs = self._bind_recent_values(
-            widget, "map_compositor_output_dirs", "prev_output_dirs"
+            widget,
+            "map_compositor_output_dirs",
+            "prev_output_dirs",
+            auto_record=True,
+        )
+        self._open_output_dir = self._bind_dir_actions(
+            widget, browse_title="Select an output directory."
+        )
+        widget.set_validator(
+            "dir",
+            invalid_tooltip="Invalid directory",
+            empty_tooltip=self.default_toolTip_txt001,
+        )
+        widget.validated.connect(
+            lambda ok, text: self._on_dir_validated(ok, text, self._open_output_dir)
         )
 
     def txt002_init(self, widget):
         """Init Map Name"""
         self._recent_map_names = self._bind_recent_values(
-            widget, "map_compositor_map_names", "prev_map_names"
+            widget,
+            "map_compositor_map_names",
+            "prev_map_names",
+            auto_record=True,
         )
-
-    # --- text-change handlers ---
-    def txt000(self, text, widget):
-        """Source Directory"""
-        self._apply_dir_text(
-            text, widget, self.ui.b003, self.default_toolTip_txt000,
-            getattr(self, "_recent_input_dirs", None),
-        )
-
-    def txt001(self, text, widget):
-        """Destination Directory"""
-        self._apply_dir_text(
-            text, widget, self.ui.b004, self.default_toolTip_txt001,
-            getattr(self, "_recent_output_dirs", None),
-        )
-
-    def txt002(self, text, widget):
-        """Map Name"""
-        if text and hasattr(self, "_recent_map_names"):
-            self._recent_map_names.record(text)
 
     # --- button handlers ---
-    def b000(self):
-        """Select Input Directory"""
-        d = self.sb.dir_dialog(title="Select a directory containing image files.")
-        if d:
-            self.ui.txt000.setText(d)
-            self.txt000(d, self.ui.txt000)
-
-    def b001(self):
-        """Select Output Directory"""
-        d = self.sb.dir_dialog(title="Select an output directory.")
-        if d:
-            self.ui.txt001.setText(d)
-            self.txt001(d, self.ui.txt001)
-
     def b002(self):
         """Combine Maps"""
         self.ui.txt003.clear()
@@ -225,14 +277,6 @@ class MapCompositorSlots:
         self.sb.app.processEvents()
         images = ptk.get_images(self.input_dir)
         self.process(images, self.input_dir, self.output_dir, self.map_name)
-
-    def b003(self):
-        """Open Input Directory"""
-        self._open_dir(self.input_dir)
-
-    def b004(self):
-        """Open Output Directory"""
-        self._open_dir(self.output_dir)
 
     # --- orchestration ---
     def process(self, images, input_dir, output_dir, map_name=None):
@@ -308,8 +352,12 @@ class MapCompositorSlots:
             f"<b>{total_maps}</b> maps ..",
             preset="italic",
         )
-        self.ui.footer.setStatusText(
-            f"Compositing {total_maps} maps from {total_layers} layers …"
+        # Reveal the footer's slim progress bar; engine ticks flow into
+        # update_progress via _on_progress. finish_progress() in every
+        # exit path auto-hides the bar after a short delay.
+        self.ui.footer.start_progress(
+            total=100,
+            text=f"Compositing {total_maps} maps from {total_layers} layers …",
         )
 
         try:
@@ -318,7 +366,7 @@ class MapCompositorSlots:
             self.engine.logger.error(
                 f"Operation encountered the following error:<br>{e}"
             )
-            self.ui.footer.setStatusText(f"Failed: {e}")
+            self.ui.footer.finish_progress(f"Failed: {e}")
             raise
 
         if result is BatchResult.MASK_FAILURE:
@@ -329,11 +377,11 @@ class MapCompositorSlots:
                 "set of mask maps can be added to the source folder. "
                 "ex. &lt;map_name&gt;_mask.png"
             )
-            self.ui.footer.setStatusText(
+            self.ui.footer.finish_progress(
                 "Mask creation failed — see message panel for details."
             )
         else:
             self.engine.logger.success("COMPLETED.")
-            self.ui.footer.setStatusText(
+            self.ui.footer.finish_progress(
                 f"Wrote {total_maps} map(s) to {output_dir}"
             )
