@@ -7,12 +7,9 @@ __version__ = "0.5.16"
 
 
 DEFAULT_INCLUDE = {
-    "_map_compositor": [
-        "MapCompositorSignals",
-        "MapCompositor",
-        "MapCompositorSlots",
-        "MapCompositorUI",
-    ]
+    "compositor": ["MapCompositor"],
+    "slots": ["MapCompositorSlots"],
+    "_map_compositor": ["MapCompositorUI"],
 }
 
 
@@ -23,7 +20,6 @@ bootstrap_package(
 
 
 __all__ = [
-    "MapCompositorSignals",
     "MapCompositor",
     "MapCompositorSlots",
     "MapCompositorUI",
