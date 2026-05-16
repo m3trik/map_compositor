@@ -7,6 +7,7 @@ Engine status messages flow through ``self.engine.logger`` (a LoggingMixin
 logger) which we route to the message panel via ``setup_logging_redirect``;
 progress-bar updates use a thin callback.
 """
+
 import os
 from typing import Optional
 
@@ -15,7 +16,6 @@ from pythontk.core_utils.logging_mixin import DefaultTextLogHandler
 from qtpy.QtWidgets import QPushButton
 
 from map_compositor.compositor import BatchResult, MapCompositor, NormalOutputMode
-
 
 _DOCS_URL = "https://github.com/m3trik/map_compositor#readme"
 
@@ -38,7 +38,7 @@ def _build_intro() -> str:
         "&nbsp;&nbsp;Padding: <b>Dilation + transparent</b> or "
         "<b>Dilation + default background color</b><br><br>"
         f'<span style="color:#888888">'
-        f'Full filename-suffix table and detailed docs: '
+        f"Full filename-suffix table and detailed docs: "
         f'<a href="{_DOCS_URL}" style="color:#88AACC">{_DOCS_URL}</a>'
         "</span>"
     )
@@ -206,7 +206,9 @@ class MapCompositorSlots:
         # Sync the combo to the engine's current value before connecting the
         # signal, so the initial setCurrentIndex doesn't re-trigger the slot.
         modes = [m for _label, m in self.NORMAL_MODE_CHOICES]
-        widget.menu.cmb_normal_mode.setCurrentIndex(modes.index(self.engine.normal_output_mode))
+        widget.menu.cmb_normal_mode.setCurrentIndex(
+            modes.index(self.engine.normal_output_mode)
+        )
         widget.menu.cmb_normal_mode.currentIndexChanged.connect(
             self._on_normal_mode_changed
         )
@@ -285,9 +287,7 @@ class MapCompositorSlots:
             self.engine.logger.error(
                 "You must specify a source and destination directory."
             )
-            self.ui.footer.setStatusText(
-                "Source and destination directories required."
-            )
+            self.ui.footer.setStatusText("Source and destination directories required.")
             return
 
         invalid_dir = next(
@@ -295,9 +295,7 @@ class MapCompositorSlots:
             None,
         )
         if invalid_dir:
-            self.engine.logger.error(
-                f"Directory is invalid: <b>{invalid_dir}</b>."
-            )
+            self.engine.logger.error(f"Directory is invalid: <b>{invalid_dir}</b>.")
             self.ui.footer.setStatusText(f"Invalid directory: {invalid_dir}")
             return
 
@@ -313,7 +311,11 @@ class MapCompositorSlots:
 
         if self.engine.remove_normal_map and has_normal_pair:
             normal = next(
-                (k for k in sorted_images if ptk.MapFactory.resolve_map_type(k) == "Normal"),
+                (
+                    k
+                    for k in sorted_images
+                    if ptk.MapFactory.resolve_map_type(k) == "Normal"
+                ),
                 None,
             )
             if normal:
@@ -382,6 +384,4 @@ class MapCompositorSlots:
             )
         else:
             self.engine.logger.success("COMPLETED.")
-            self.ui.footer.finish_progress(
-                f"Wrote {total_maps} map(s) to {output_dir}"
-            )
+            self.ui.footer.finish_progress(f"Wrote {total_maps} map(s) to {output_dir}")

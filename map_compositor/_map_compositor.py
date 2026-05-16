@@ -6,6 +6,7 @@ The engine lives in :mod:`map_compositor.compositor` and the slot
 bindings in :mod:`map_compositor.slots`; this module only assembles the
 Switchboard-driven UI and provides the script entry point.
 """
+
 from qtpy import QtCore, QtWidgets
 
 # High-DPI scaling must be enabled before QApplication is constructed,

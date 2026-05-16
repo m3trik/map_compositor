@@ -5,6 +5,7 @@
 The engine emits status via ``self.logger`` (LoggingMixin). Tests attach
 an in-memory handler to capture records without going through Qt.
 """
+
 import logging
 import os
 import shutil
@@ -67,9 +68,7 @@ class TestEnginePurity(unittest.TestCase):
         with open(eng.__file__, "r", encoding="utf-8") as f:
             src = f.read()
         for name in forbidden:
-            self.assertNotIn(
-                name, src, f"compositor.py should not reference {name}"
-            )
+            self.assertNotIn(name, src, f"compositor.py should not reference {name}")
 
 
 class TestComposite(unittest.TestCase, _LoggerCaptureMixin):
@@ -198,9 +197,7 @@ class TestProcessBatch(unittest.TestCase, _LoggerCaptureMixin):
         engine.total_progress = 999
 
         p = self._write("a_Base_Color.png", (127, 127, 127, 255))
-        engine.process_batch(
-            {"Base_Color": [(p, _load(p))]}, self.tmp, name="test"
-        )
+        engine.process_batch({"Base_Color": [(p, _load(p))]}, self.tmp, name="test")
 
         self.assertEqual(engine.masks, [])
         self.assertEqual(engine.total_progress, 1)
@@ -227,8 +224,10 @@ class TestRetryFailed(unittest.TestCase, _LoggerCaptureMixin):
     def test_retry_fills_layers_when_mask_available(self):
         bg_a = _solid_rgba((4, 4), (127, 127, 127, 255))
         bg_b = _solid_rgba((4, 4), (0, 0, 0, 255))
-        pa = os.path.join(self.tmp, "a_Base_Color.png"); bg_a.save(pa)
-        pb = os.path.join(self.tmp, "b_Base_Color.png"); bg_b.save(pb)
+        pa = os.path.join(self.tmp, "a_Base_Color.png")
+        bg_a.save(pa)
+        pb = os.path.join(self.tmp, "b_Base_Color.png")
+        bg_b.save(pb)
 
         engine = MapCompositor()
         engine.total_len = 2
@@ -245,7 +244,8 @@ class TestRetryFailed(unittest.TestCase, _LoggerCaptureMixin):
 
     def test_retry_emits_error_when_mask_missing(self):
         bg = _solid_rgba((4, 4), (127, 127, 127, 255))
-        p = os.path.join(self.tmp, "x_Base_Color.png"); bg.save(p)
+        p = os.path.join(self.tmp, "x_Base_Color.png")
+        bg.save(p)
 
         engine = MapCompositor()
         cap = self.attach_capture(engine)
@@ -406,9 +406,7 @@ class TestAlphaCompositeErrorDiagnostic(unittest.TestCase, _LoggerCaptureMixin):
             name="test",
         )
 
-        error_msgs = [
-            r.getMessage() for r in cap.records if r.levelname == "ERROR"
-        ]
+        error_msgs = [r.getMessage() for r in cap.records if r.levelname == "ERROR"]
         self.assertEqual(len(error_msgs), 1)
         self.assertIn("b_Base_Color.png", error_msgs[0])
 
@@ -429,9 +427,7 @@ class TestSetBitDepthIntegration(unittest.TestCase):
 
         engine = MapCompositor()
         engine.total_len = 1
-        engine.composite_images(
-            {"Roughness": [(p, _load(p))]}, self.tmp, name="test"
-        )
+        engine.composite_images({"Roughness": [(p, _load(p))]}, self.tmp, name="test")
 
         out = os.path.join(self.tmp, "test_Roughness.png")
         with Image.open(out) as saved:
@@ -499,9 +495,7 @@ class TestNormalFormatMismatchWarning(unittest.TestCase, _LoggerCaptureMixin):
     def test_match_emits_no_warning(self):
         cap = self._run("DirectX")
         warnings = [r for r in cap.records if r.levelname == "WARNING"]
-        self.assertEqual(
-            [w for w in warnings if "declared" in w.getMessage()], []
-        )
+        self.assertEqual([w for w in warnings if "declared" in w.getMessage()], [])
 
 
 class TestNormalOutputMode(unittest.TestCase, _LoggerCaptureMixin):
@@ -592,9 +586,7 @@ class TestOptimizeOutput(unittest.TestCase, _LoggerCaptureMixin):
             engine = MapCompositor()
             engine.optimize_output = True
             engine.total_len = 1
-            engine.composite_images(
-                {"Base_Color": [(p, _load(p))]}, self.tmp, name="t"
-            )
+            engine.composite_images({"Base_Color": [(p, _load(p))]}, self.tmp, name="t")
 
             self.assertEqual(len(calls), 1)
             self.assertEqual(calls[0][1].get("map_type"), "Base_Color")
@@ -617,9 +609,7 @@ class TestOptimizeOutput(unittest.TestCase, _LoggerCaptureMixin):
 
             engine = MapCompositor()  # optimize_output defaults False
             engine.total_len = 1
-            engine.composite_images(
-                {"Base_Color": [(p, _load(p))]}, self.tmp, name="t"
-            )
+            engine.composite_images({"Base_Color": [(p, _load(p))]}, self.tmp, name="t")
             self.assertEqual(calls, [])
         finally:
             ptk.ImgUtils.optimize_texture = original
@@ -701,9 +691,12 @@ class TestEdgeCases(unittest.TestCase, _LoggerCaptureMixin):
         gray = Image.new("RGBA", (4, 4), (127, 127, 127, 255))
         flat = Image.new("RGBA", (4, 4), (127, 127, 255, 255))
 
-        bc = os.path.join(self.tmp, "src_Base_Color.png"); gray.save(bc)
-        nrm = os.path.join(self.tmp, "src_Normal_DirectX.png"); flat.save(nrm)
-        rough = os.path.join(self.tmp, "src_Roughness.png"); gray.save(rough)
+        bc = os.path.join(self.tmp, "src_Base_Color.png")
+        gray.save(bc)
+        nrm = os.path.join(self.tmp, "src_Normal_DirectX.png")
+        flat.save(nrm)
+        rough = os.path.join(self.tmp, "src_Roughness.png")
+        gray.save(rough)
 
         engine = MapCompositor()
         result = engine.process_batch(
@@ -732,7 +725,8 @@ class TestEdgeCases(unittest.TestCase, _LoggerCaptureMixin):
         """Engine doesn't pre-create output_dir — confirm PIL's error
         propagates up so the slot's try/except can report it."""
         gray = Image.new("RGBA", (4, 4), (127, 127, 127, 255))
-        p = os.path.join(self.tmp, "src_Base_Color.png"); gray.save(p)
+        p = os.path.join(self.tmp, "src_Base_Color.png")
+        gray.save(p)
 
         missing_dir = os.path.join(self.tmp, "does_not_exist")
         engine = MapCompositor()
@@ -771,11 +765,11 @@ class TestHandlerHygiene(unittest.TestCase):
         engine.logger.setup_logging_redirect(widget_b)
 
         text_handlers = [
-            h for h in engine.logger.handlers
-            if isinstance(h, DefaultTextLogHandler)
+            h for h in engine.logger.handlers if isinstance(h, DefaultTextLogHandler)
         ]
         self.assertEqual(
-            len(text_handlers), 1,
+            len(text_handlers),
+            1,
             "Stale text-widget handlers should be swept before redirecting",
         )
         # And the surviving handler points to the new widget.
@@ -799,9 +793,7 @@ class TestPublicApi(unittest.TestCase):
             )
 
 
-class TestRetryPassRespectsExistingComplement(
-    unittest.TestCase, _LoggerCaptureMixin
-):
+class TestRetryPassRespectsExistingComplement(unittest.TestCase, _LoggerCaptureMixin):
     """When the source folder already contains both Normal_DirectX and
     Normal_OpenGL, the engine must not auto-invert — even if Normal_DirectX
     fails the first composite pass and is processed through the retry path.
@@ -830,7 +822,8 @@ class TestRetryPassRespectsExistingComplement(
         n_b = _alpha_with_center_content((16, 16), (50, 100, 200, 255))
         n_a_path = os.path.join(self.tmp, "a_Normal.png")
         n_b_path = os.path.join(self.tmp, "b_Normal.png")
-        n_a.save(n_a_path); n_b.save(n_b_path)
+        n_a.save(n_a_path)
+        n_b.save(n_b_path)
 
         # Two DX layers with mismatched solid backgrounds → forces the
         # first pass to defer to the mask-retry path.
@@ -838,7 +831,8 @@ class TestRetryPassRespectsExistingComplement(
         dx_b = _solid_rgba((16, 16), (0, 0, 0, 255))
         dx_a_path = os.path.join(self.tmp, "a_Normal_DirectX.png")
         dx_b_path = os.path.join(self.tmp, "b_Normal_DirectX.png")
-        dx_a.save(dx_a_path); dx_b.save(dx_b_path)
+        dx_a.save(dx_a_path)
+        dx_b.save(dx_b_path)
 
         # Distinct user-provided OpenGL — pure green so any inversion-
         # clobber from the DX retry path would be detectable.
@@ -905,7 +899,8 @@ class TestFormatProbeUsesOnDiskSource(unittest.TestCase, _LoggerCaptureMixin):
         n_b = _alpha_with_center_content((16, 16), (50, 100, 200, 255))
         n_a_path = os.path.join(self.tmp, "a_Normal.png")
         n_b_path = os.path.join(self.tmp, "b_Normal.png")
-        n_a.save(n_a_path); n_b.save(n_b_path)
+        n_a.save(n_a_path)
+        n_b.save(n_b_path)
 
         # Two DX layers with different solid bgs to force retry.
         # Crucially the bg colors differ from the map type's default
@@ -916,7 +911,8 @@ class TestFormatProbeUsesOnDiskSource(unittest.TestCase, _LoggerCaptureMixin):
         dx_b = _solid_rgba((16, 16), (0, 0, 0, 255))
         dx_a_path = os.path.join(self.tmp, "a_Normal_DirectX.png")
         dx_b_path = os.path.join(self.tmp, "b_Normal_DirectX.png")
-        dx_a.save(dx_a_path); dx_b.save(dx_b_path)
+        dx_a.save(dx_a_path)
+        dx_b.save(dx_b_path)
 
         seen: list = []
         original = ptk.MapFactory.detect_normal_map_format

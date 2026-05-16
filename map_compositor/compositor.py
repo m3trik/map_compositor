@@ -7,6 +7,7 @@ No Qt, no UI imports. Status messages are written to ``self.logger``
 text widget by calling ``self.logger.setup_logging_redirect(widget)``.
 Progress-bar updates go through a thin ``progress_callback``.
 """
+
 import os
 import warnings
 from dataclasses import dataclass
@@ -17,7 +18,6 @@ import numpy as np
 from PIL import Image
 import pythontk as ptk
 
-
 Layers = List[Tuple[str, Image.Image]]
 SortedImages = Dict[str, Layers]
 ProgressCallback = Callable[[float], None]
@@ -26,18 +26,18 @@ ProgressCallback = Callable[[float], None]
 class BatchResult(Enum):
     """Outcome of a full composite + retry-with-mask cycle."""
 
-    SUCCESS = "success"            # All maps composited on the first pass.
-    RETRIED = "retried"            # Some required a mask retry; all eventually saved.
+    SUCCESS = "success"  # All maps composited on the first pass.
+    RETRIED = "retried"  # Some required a mask retry; all eventually saved.
     MASK_FAILURE = "mask_failure"  # Some failed and no mask was available to recover.
 
 
 class NormalOutputMode(Enum):
     """How the engine handles DirectX/OpenGL normal-map output."""
 
-    BOTH = "both"               # Save the provided format + auto-generate the complement (default).
-    OPENGL_ONLY = "opengl_only" # Always output OpenGL; convert DirectX inputs.
+    BOTH = "both"  # Save the provided format + auto-generate the complement (default).
+    OPENGL_ONLY = "opengl_only"  # Always output OpenGL; convert DirectX inputs.
     DIRECTX_ONLY = "directx_only"  # Always output DirectX; convert OpenGL inputs.
-    NONE = "none"               # Pass inputs through as-is; do not synthesize a complement.
+    NONE = "none"  # Pass inputs through as-is; do not synthesize a complement.
 
 
 @dataclass(frozen=True)
@@ -217,9 +217,7 @@ class MapCompositor(ptk.LoggingMixin):
                 f"Attempting to create masks using source <b>{fallback_typ}</b> ..",
                 preset="italic",
             )
-            return ptk.create_mask(
-                [img for _, img in fallback_layers], fallback_bg
-            )
+            return ptk.create_mask([img for _, img in fallback_layers], fallback_bg)
 
         self.logger.info(
             f"Creating masks from <b>{len(sources)}</b> alpha source(s): "
@@ -272,9 +270,7 @@ class MapCompositor(ptk.LoggingMixin):
             f"{typ.rstrip('_')} {ptk.ImgUtils.map_modes[key]} {bit_depth}bit "
             f"{ext.upper()} {width}x{height}:"
         )
-        self.logger.log_group(
-            title, [ptk.format_path(fp, "file") for fp, _ in layers]
-        )
+        self.logger.log_group(title, [ptk.format_path(fp, "file") for fp, _ in layers])
 
         composited = self._alpha_composite_layers(
             first_image, remaining, bg, mode, filepath0
@@ -292,10 +288,18 @@ class MapCompositor(ptk.LoggingMixin):
         result.save(out_path)
         self._maybe_optimize(out_path, key)
 
-        info = _MapInfo(mode=mode, bit_depth=bit_depth, ext=ext, width=width, height=height)
+        info = _MapInfo(
+            mode=mode, bit_depth=bit_depth, ext=ext, width=width, height=height
+        )
         self._maybe_convert_normal(
-            result, typ, sorted_images, output_dir, name, info,
-            source=first_image, source_path=filepath0,
+            result,
+            typ,
+            sorted_images,
+            output_dir,
+            name,
+            info,
+            source=first_image,
+            source_path=filepath0,
         )
         return True
 
@@ -412,18 +416,30 @@ class MapCompositor(ptk.LoggingMixin):
                 return
             if "Normal_DirectX" not in inventory:
                 if self._try_invert_normal(
-                    result, typ, "Normal_OpenGL", "Normal_DirectX", output_dir, name, info
+                    result,
+                    typ,
+                    "Normal_OpenGL",
+                    "Normal_DirectX",
+                    output_dir,
+                    name,
+                    info,
                 ):
                     self._warn_if_normal_format_mismatch(probe, declared="OpenGL")
             return
 
         if mode is NormalOutputMode.OPENGL_ONLY:
             target_format, src_set, dst_set, declared = (
-                "OpenGL", "Normal_DirectX", "Normal_OpenGL", "DirectX"
+                "OpenGL",
+                "Normal_DirectX",
+                "Normal_OpenGL",
+                "DirectX",
             )
         elif mode is NormalOutputMode.DIRECTX_ONLY:
             target_format, src_set, dst_set, declared = (
-                "DirectX", "Normal_OpenGL", "Normal_DirectX", "OpenGL"
+                "DirectX",
+                "Normal_OpenGL",
+                "Normal_DirectX",
+                "OpenGL",
             )
         else:
             return  # unexpected mode — fail closed instead of misrouting
