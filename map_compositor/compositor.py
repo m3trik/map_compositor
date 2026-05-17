@@ -45,7 +45,7 @@ class _MapInfo:
     """Per-map descriptor passed between engine helpers."""
 
     mode: str
-    bit_depth: int
+    bit_depth: str
     ext: str
     width: int
     height: int
@@ -252,7 +252,7 @@ class MapCompositor(ptk.LoggingMixin):
         mode = first_image.mode
         ext = ptk.format_path(filepath0, "ext")
         key = ptk.MapFactory.resolve_map_type(typ)
-        bit_depth = ptk.ImgUtils.bit_depth[ptk.ImgUtils.map_modes[key]]
+        bit_depth = ptk.ImgUtils.format_bit_depth(ptk.ImgUtils.map_modes[key])
 
         # PIL mode "I" (32bit int) cannot be created directly; route via RGB.
         if mode == "I":
@@ -267,7 +267,7 @@ class MapCompositor(ptk.LoggingMixin):
             self.masks = self._seed_masks(sorted_images, typ, layers, bg)
 
         title = (
-            f"{typ.rstrip('_')} {ptk.ImgUtils.map_modes[key]} {bit_depth}bit "
+            f"{typ.rstrip('_')} {ptk.ImgUtils.map_modes[key]} {bit_depth} "
             f"{ext.upper()} {width}x{height}:"
         )
         self.logger.log_group(title, [ptk.format_path(fp, "file") for fp, _ in layers])
@@ -283,7 +283,7 @@ class MapCompositor(ptk.LoggingMixin):
         result.paste(composited, mask=composited)
         result = ptk.ImgUtils.set_bit_depth(result, key)
         mode = result.mode
-        bit_depth = ptk.ImgUtils.bit_depth.get(mode, bit_depth)
+        bit_depth = ptk.ImgUtils.format_bit_depth(mode)
         out_path = os.path.join(output_dir, f"{name}_{typ}.{ext}")
         result.save(out_path)
         self._maybe_optimize(out_path, key)
@@ -501,7 +501,7 @@ class MapCompositor(ptk.LoggingMixin):
         inverted = ptk.invert_channels(result, "g")
         inverted.save(os.path.join(output_dir, f"{name}_{new_type}.{info.ext}"))
         title = (
-            f"{new_type.rstrip('_')} {info.mode} {info.bit_depth}bit "
+            f"{new_type.rstrip('_')} {info.mode} {info.bit_depth} "
             f"{info.ext.upper()} {info.width}x{info.height}:"
         )
         self.logger.log_group(title, [f"Created using {name}_{typ}.{info.ext}"])

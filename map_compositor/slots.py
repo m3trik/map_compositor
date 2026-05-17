@@ -4,16 +4,18 @@
 
 Slots own the UI state and compose a :class:`MapCompositor` engine.
 Engine status messages flow through ``self.engine.logger`` (a LoggingMixin
-logger) which we route to the message panel via ``setup_logging_redirect``;
-progress-bar updates use a thin callback.
+logger) which has a default ``StreamHandler`` for console output; we
+attach uitk's :class:`TextEditLogHandler` alongside it so the UI message
+panel auto-scrolls. Progress-bar updates use a thin callback.
 """
-
+import logging
 import os
 from typing import Optional
 
 import pythontk as ptk
-from pythontk.core_utils.logging_mixin import DefaultTextLogHandler
+from pythontk.core_utils.logging_mixin import LevelAwareFormatter
 from qtpy.QtWidgets import QPushButton
+from uitk.widgets.textEditLogHandler import TextEditLogHandler
 
 from map_compositor.compositor import BatchResult, MapCompositor, NormalOutputMode
 
@@ -62,13 +64,19 @@ class MapCompositorSlots:
         self.ui = self.sb.loaded_ui.map_compositor
 
         self.engine = MapCompositor(progress_callback=self._on_progress)
-        # The engine's logger is a class-level property shared across instances.
-        # If the UI was opened before, its DefaultTextLogHandler is still bound
-        # to that (now-destroyed) widget — sweep stale handlers before attaching.
-        for h in list(self.engine.logger.handlers):
-            if isinstance(h, DefaultTextLogHandler):
-                self.engine.logger.removeHandler(h)
-        self.engine.logger.setup_logging_redirect(self.ui.txt003)
+        logger = self.engine.logger
+        # Class-level logger — sweep stale widget handlers from prior sessions.
+        for h in list(logger.handlers):
+            if hasattr(h, "widget"):
+                logger.removeHandler(h)
+        # Attach directly; ``_set_text_handler`` would force this handler
+        # process-wide. monospace=False keeps the intro's rich-text font;
+        # log records still render monospace via TextEditLogHandler's <span>.
+        logger.setLevel(logging.INFO)
+        handler = TextEditLogHandler(self.ui.txt003, monospace=False)
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(LevelAwareFormatter(logger=logger, strip_html=False))
+        logger.addHandler(handler)
 
         self.default_toolTip_txt000 = self.ui.txt000.toolTip()
         self.default_toolTip_txt001 = self.ui.txt001.toolTip()

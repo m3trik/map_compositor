@@ -373,7 +373,7 @@ class TestMapInfoBundle(unittest.TestCase):
     def test_mapinfo_is_frozen(self):
         from map_compositor.compositor import _MapInfo
 
-        info = _MapInfo(mode="RGB", bit_depth=24, ext="png", width=4, height=4)
+        info = _MapInfo(mode="RGB", bit_depth="24bit (8x3)", ext="png", width=4, height=4)
         with self.assertRaises(Exception):
             info.mode = "RGBA"
 
@@ -744,8 +744,6 @@ class TestHandlerHygiene(unittest.TestCase):
 
     def test_only_one_text_widget_handler_per_redirect(self):
         # Simulate the slot's sweep logic against two fake widgets with .append.
-        from pythontk.core_utils.logging_mixin import DefaultTextLogHandler
-
         class _FakeWidget:
             def __init__(self):
                 self.lines: List[str] = []
@@ -760,12 +758,12 @@ class TestHandlerHygiene(unittest.TestCase):
         # New "session" — sweep stale handlers, attach a fresh one.
         widget_b = _FakeWidget()
         for h in list(engine.logger.handlers):
-            if isinstance(h, DefaultTextLogHandler):
+            if hasattr(h, "widget"):
                 engine.logger.removeHandler(h)
         engine.logger.setup_logging_redirect(widget_b)
 
         text_handlers = [
-            h for h in engine.logger.handlers if isinstance(h, DefaultTextLogHandler)
+            h for h in engine.logger.handlers if hasattr(h, "widget")
         ]
         self.assertEqual(
             len(text_handlers),
@@ -777,7 +775,7 @@ class TestHandlerHygiene(unittest.TestCase):
 
         # Cleanup so subsequent tests don't see the leftover handler.
         for h in list(engine.logger.handlers):
-            if isinstance(h, DefaultTextLogHandler):
+            if hasattr(h, "widget"):
                 engine.logger.removeHandler(h)
 
 
