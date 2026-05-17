@@ -373,7 +373,9 @@ class TestMapInfoBundle(unittest.TestCase):
     def test_mapinfo_is_frozen(self):
         from map_compositor.compositor import _MapInfo
 
-        info = _MapInfo(mode="RGB", bit_depth="24bit (8x3)", ext="png", width=4, height=4)
+        info = _MapInfo(
+            mode="RGB", bit_depth="24bit (8x3)", ext="png", width=4, height=4
+        )
         with self.assertRaises(Exception):
             info.mode = "RGBA"
 
@@ -762,9 +764,7 @@ class TestHandlerHygiene(unittest.TestCase):
                 engine.logger.removeHandler(h)
         engine.logger.setup_logging_redirect(widget_b)
 
-        text_handlers = [
-            h for h in engine.logger.handlers if hasattr(h, "widget")
-        ]
+        text_handlers = [h for h in engine.logger.handlers if hasattr(h, "widget")]
         self.assertEqual(
             len(text_handlers),
             1,

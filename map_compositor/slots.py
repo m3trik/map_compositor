@@ -8,6 +8,7 @@ logger) which has a default ``StreamHandler`` for console output; we
 attach uitk's :class:`TextEditLogHandler` alongside it so the UI message
 panel auto-scrolls. Progress-bar updates use a thin callback.
 """
+
 import logging
 import os
 from typing import Optional
