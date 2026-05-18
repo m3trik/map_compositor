@@ -26,6 +26,18 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=setuptools.find_packages(),
+    # Self-describe as a uitk external tool — ExternalToolHandler's
+    # discover() registers this automatically with no host edits. The
+    # ``.in_process`` group declares the preferred launch mode (run
+    # under the host's existing Qt loop instead of spawning a new
+    # interpreter). Bracketed ``[extras]`` would become tags in the
+    # browser — none are declared here; add them only when there's a
+    # real classification need.
+    entry_points={
+        "uitk.external_tools.in_process": [
+            "map_compositor = map_compositor:MapCompositorUI",
+        ],
+    },
     include_package_data=True,
     install_requires=ptk.PackageManager.update_requirements(exc=["Pillow", "qtpy"]),
     data_files=ptk.get_dir_contents(

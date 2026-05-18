@@ -1,4 +1,4 @@
 qtpy
 Pillow
-pythontk==0.7.21
-uitk==1.0.21
+pythontk==0.8.32
+uitk==1.2.4
