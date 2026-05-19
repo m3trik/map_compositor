@@ -171,9 +171,7 @@ class MapCompositor(ptk.LoggingMixin):
 
         # Strip non-config metadata before forwarding to prepare_maps.
         workflow_config = {
-            k: v
-            for k, v in presets[self.output_template].items()
-            if k != "description"
+            k: v for k, v in presets[self.output_template].items() if k != "description"
         }
 
         self.logger.log_raw("")
