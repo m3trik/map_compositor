@@ -71,6 +71,10 @@ class MapCompositor(ptk.LoggingMixin):
         self.remove_normal_map: bool = True
         self.optimize_output: bool = False
         self.normal_output_mode: NormalOutputMode = NormalOutputMode.BOTH
+        # Optional pythontk workflow preset key (e.g. WF.HDRP). When set, the
+        # composited output is post-processed by MapFactory.prepare_maps so
+        # files are packed/named for the target engine. None = composite-only.
+        self.output_template: Optional[str] = None
         self.total_len: int = 0
         self.total_progress: int = 0
         self.masks: List[Image.Image] = []
@@ -116,6 +120,7 @@ class MapCompositor(ptk.LoggingMixin):
         self._batch_map_types = set(sorted_images.keys())
         failed = self.composite_images(sorted_images, output_dir, name)
         if not failed:
+            self.apply_output_template(output_dir)
             return BatchResult.SUCCESS
         # Blank line above the phase marker so it visually separates the
         # first composite pass from the mask-retry pass — matches the
@@ -128,7 +133,76 @@ class MapCompositor(ptk.LoggingMixin):
         if not retried:
             return BatchResult.MASK_FAILURE
         self.composite_images(retried, output_dir, name)
+        self.apply_output_template(output_dir)
         return BatchResult.RETRIED
+
+    def apply_output_template(self, output_dir: str) -> List[str]:
+        """Post-process composited output for a target workflow.
+
+        No-op when ``output_template`` is unset. Otherwise loads the named
+        pythontk workflow preset (see :class:`pythontk.img_utils.map_registry.WF`)
+        and runs :meth:`pythontk.MapFactory.prepare_maps` on the files just
+        written to ``output_dir``. The composited files stay on disk; the
+        workflow adds packed / format-converted siblings alongside them.
+
+        Returns the list of files produced by the workflow (empty list when
+        the template is unset, the dir is invalid, or no inputs were found).
+        """
+        if not self.output_template:
+            return []
+
+        if not output_dir or not os.path.isdir(output_dir):
+            self.logger.warning(
+                f"Skipping output template: <b>{output_dir!r}</b> is not a directory."
+            )
+            return []
+
+        presets = ptk.MapRegistry().get_workflow_presets()
+        if self.output_template not in presets:
+            self.logger.warning(
+                f"Unknown output template: <b>{self.output_template}</b>. "
+                f"Skipping post-processing."
+            )
+            return []
+
+        files = ptk.get_images(output_dir)
+        if not files:
+            return []
+
+        # Strip non-config metadata before forwarding to prepare_maps.
+        workflow_config = {
+            k: v
+            for k, v in presets[self.output_template].items()
+            if k != "description"
+        }
+
+        self.logger.log_raw("")
+        self.logger.info(
+            f"Applying output template: <b>{self.output_template}</b> ..",
+            preset="italic",
+        )
+
+        def _progress(current: int, total: int, message: str) -> None:
+            # Surface per-set progress in the UI panel — prepare_maps' own
+            # logger writes to its class stream, which the engine's UI
+            # handler doesn't see. logger= below catches everything else.
+            self.logger.info(f"  [{current}/{total}] {message}")
+
+        try:
+            results = ptk.MapFactory.prepare_maps(
+                files,
+                output_dir=output_dir,
+                logger=self.logger,
+                progress_callback=_progress,
+                **workflow_config,
+            )
+        except Exception as e:
+            self.logger.error(f"Output template failed: {e}")
+            return []
+
+        if isinstance(results, dict):
+            return [p for paths in results.values() for p in paths]
+        return list(results or [])
 
     def composite_images(
         self,

@@ -214,6 +214,83 @@ class TestProcessBatch(unittest.TestCase, _LoggerCaptureMixin):
         self.assertEqual(engine.total_len, 2)
 
 
+class TestOutputTemplate(unittest.TestCase, _LoggerCaptureMixin):
+    """Engine post-processes composited output with a pythontk workflow preset."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="mc_template_")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _stage(self):
+        """Drop in a complete set of single-layer maps and return them grouped."""
+        sorted_images = {}
+        layers = [
+            ("Base_Color", "RGB", (200, 100, 50)),
+            ("Metallic", "L", 200),
+            ("Roughness", "L", 100),
+            ("Ambient_Occlusion", "L", 150),
+            ("Normal_OpenGL", "RGB", (128, 128, 255)),
+        ]
+        for typ, mode, color in layers:
+            path = os.path.join(self.tmp, f"layer_{typ}.png")
+            Image.new(mode, (4, 4), color).save(path)
+            sorted_images[typ] = [(path, _load(path))]
+        return sorted_images
+
+    def test_default_template_is_noop(self):
+        engine = MapCompositor()
+        sorted_images = self._stage()
+        result = engine.process_batch(sorted_images, self.tmp, name="mat")
+        self.assertIs(result, BatchResult.SUCCESS)
+        files = set(os.listdir(self.tmp))
+        # No template selected → no packed MSAO/ORM output added.
+        self.assertFalse(any(n.endswith("_MSAO.png") for n in files))
+        self.assertFalse(any(n.endswith("_ORM.png") for n in files))
+
+    def test_unity_hdrp_template_emits_msao(self):
+        engine = MapCompositor()
+        engine.output_template = "Unity HDRP"
+        sorted_images = self._stage()
+        result = engine.process_batch(sorted_images, self.tmp, name="mat")
+        self.assertIs(result, BatchResult.SUCCESS)
+        files = set(os.listdir(self.tmp))
+        self.assertIn("mat_MSAO.png", files)
+        # Composited siblings stay on disk.
+        self.assertIn("mat_Base_Color.png", files)
+
+    def test_unknown_template_warns_and_skips(self):
+        engine = MapCompositor()
+        engine.output_template = "Not A Real Workflow"
+        cap = self.attach_capture(engine)
+        sorted_images = self._stage()
+        result = engine.process_batch(sorted_images, self.tmp, name="mat")
+        self.assertIs(result, BatchResult.SUCCESS)
+        self.assertTrue(
+            any("Unknown output template" in m for m in cap.messages()),
+            "Expected a warning for an unknown template",
+        )
+
+    def test_apply_output_template_skips_when_unset(self):
+        engine = MapCompositor()
+        # Drop a single file in the dir; with no template, the method returns [].
+        Image.new("L", (4, 4), 200).save(os.path.join(self.tmp, "mat_Metallic.png"))
+        result = engine.apply_output_template(self.tmp)
+        self.assertEqual(result, [])
+
+    def test_apply_output_template_invalid_dir_warns(self):
+        engine = MapCompositor()
+        engine.output_template = "Unity HDRP"
+        cap = self.attach_capture(engine)
+        result = engine.apply_output_template(os.path.join(self.tmp, "does_not_exist"))
+        self.assertEqual(result, [])
+        self.assertTrue(
+            any("is not a directory" in m for m in cap.messages()),
+            "Expected a warning for an invalid output dir",
+        )
+
+
 class TestRetryFailed(unittest.TestCase, _LoggerCaptureMixin):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="mc_retry_")

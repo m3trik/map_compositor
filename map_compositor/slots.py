@@ -60,6 +60,11 @@ class MapCompositorSlots:
         ("No conversion", NormalOutputMode.NONE),
     )
 
+    # "None" disables the post-composite workflow pass; the remaining entries
+    # are populated from pythontk's MapRegistry at runtime so the menu stays
+    # in sync with the registry's WF.* workflow keys.
+    _NO_TEMPLATE_LABEL = "None (composite only)"
+
     def __init__(self, switchboard) -> None:
         self.sb = switchboard
         self.ui = self.sb.loaded_ui.map_compositor
@@ -209,7 +214,12 @@ class MapCompositorSlots:
         widget.menu.add(
             "QComboBox",
             setObjectName="cmb_normal_mode",
-            setToolTip="Choose which DirectX/OpenGL normal map variant(s) to output.",
+            setToolTip=(
+                "Choose which DirectX/OpenGL normal map variant(s) to output. "
+                "Note: when an output template is selected, the template's "
+                "required normal format may add a sibling file alongside the "
+                "compositor's output."
+            ),
             addItems=[label for label, _mode in self.NORMAL_MODE_CHOICES],
         )
         # Sync the combo to the engine's current value before connecting the
@@ -222,6 +232,37 @@ class MapCompositorSlots:
             self._on_normal_mode_changed
         )
 
+        # Output template — names sourced from pythontk's MapRegistry so the
+        # menu mirrors the registry's WF.* workflow keys. None = composite
+        # only (no post-pass). When set, after compositing finishes the
+        # engine runs MapFactory.prepare_maps with the matching workflow
+        # preset to pack/rename files for the target engine.
+        presets = ptk.MapRegistry().get_workflow_presets()
+        self._template_choices = (self._NO_TEMPLATE_LABEL, *presets.keys())
+        widget.menu.add(
+            "QComboBox",
+            setObjectName="cmb_output_template",
+            setToolTip=(
+                "Post-process composited output for a target workflow. "
+                "Packs/renames the files for the chosen engine (e.g. Unity "
+                "HDRP packs Metallic/AO/Smoothness into an MSAO MaskMap). "
+                "Original composited files stay on disk alongside the "
+                "workflow output."
+            ),
+            addItems=list(self._template_choices),
+        )
+        # Pre-select to match the engine field (default: None).
+        current = self.engine.output_template or self._NO_TEMPLATE_LABEL
+        try:
+            widget.menu.cmb_output_template.setCurrentIndex(
+                self._template_choices.index(current)
+            )
+        except ValueError:
+            widget.menu.cmb_output_template.setCurrentIndex(0)
+        widget.menu.cmb_output_template.currentIndexChanged.connect(
+            self._on_output_template_changed
+        )
+
     def _on_optimize_toggled(self, state) -> None:
         # Qt.Checked is 2 in PySide6, 2 in PySide2 — robust check via bool.
         self.engine.optimize_output = bool(state)
@@ -229,6 +270,12 @@ class MapCompositorSlots:
     def _on_normal_mode_changed(self, index: int) -> None:
         _label, mode = self.NORMAL_MODE_CHOICES[index]
         self.engine.normal_output_mode = mode
+
+    def _on_output_template_changed(self, index: int) -> None:
+        choice = self._template_choices[index]
+        self.engine.output_template = (
+            None if choice == self._NO_TEMPLATE_LABEL else choice
+        )
 
     def txt000_init(self, widget):
         """Init Source Directory"""
